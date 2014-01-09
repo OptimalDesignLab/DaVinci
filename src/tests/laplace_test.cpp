@@ -1,0 +1,51 @@
+/**
+ * \file laplace_test.cpp
+ * \brief unit test for the PDEModel<SimpleMesh,Laplace> specialization
+ * \author Jason Hicken <jason.hicken@gmail.com>
+ */
+
+#include <boost/test/unit_test.hpp>
+#include "Teuchos_DefaultComm.hpp"
+#include <Teuchos_Time.hpp>
+#include <Teuchos_GlobalMPISession.hpp>
+#include "simple_mesh.hpp"
+#include "laplace.hpp"
+#include "pde_model.hpp"
+
+using Teuchos::GlobalMPISession;
+using Teuchos::RCP;
+using Teuchos::ParameterList;
+using Teuchos::Comm;
+using Teuchos::DefaultComm;
+using davinci::SimpleMesh;
+using davinci::Laplace;
+using davinci::PDEModel;
+
+BOOST_AUTO_TEST_SUITE(Laplace_suite)
+
+BOOST_AUTO_TEST_CASE(Constructors) {
+  // Note: GlobalMPISession requires argc and argv, but these are hidden by
+  // boost test; they can be accessed as shown below.
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm = DefaultComm<int>::getComm();
+  PDEModel<SimpleMesh,Laplace> LaplacePDE(std::cout, comm);
+}
+
+BOOST_AUTO_TEST_CASE(Initialize) {
+  // Note: GlobalMPISession requires argc and argv, but these are hidden by
+  // boost test; they can be accessed as shown below.
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm = DefaultComm<int>::getComm();
+  PDEModel<SimpleMesh,Laplace> LaplacePDE(std::cout, comm);
+  ParameterList p;
+  p.set("Mesh Type", "Rectangular");
+  LaplacePDE.InitializeMesh(p);
+  LaplacePDE.InitializeEquationSet(p);
+}
+
+
+BOOST_AUTO_TEST_SUITE_END()

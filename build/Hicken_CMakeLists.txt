@@ -1,0 +1,47 @@
+cmake_minimum_required(VERSION 2.8)
+
+# User flags and directories *** CHANGE FOR YOUR SYSTEM ***
+set(Trilinos_PATH "/usr/local/trilinos/mpi/dbg") # Trilinos installation path
+add_definitions("-DDAVINCI_VERBOSE") # verbose debugging information
+#add_definitions("-DBOOST_DISABLE_ASSERTS") # disable boost assertions
+set(USER_CXX_FLAGS "-O3")
+
+# Load Trilinos information and variables
+set(Trilinos_DIR "${Trilinos_PATH}/lib/cmake/Trilinos")
+find_package(Trilinos)
+set(CXX ${Trilinos_CXX_COMPILER})
+set(CC ${Trilinos_C_COMPILER})
+set(FORT ${Trilinos_Fortran_COMPILER})
+set(CXX_FLAGS ${Trilinos_CXX_COMPILER_FLAGS}$ ${USER_CXX_FLAGS})
+set(C_FLAGS ${Trilinos_C_COMPILER_FLAGS} ${USERC_FLAGS})
+set(FORT_FLAGS ${Trilinos_Fortran_COMPILER_FLAGS} ${USER_FORT_FLAGS})
+set(LINK_FLAGS ${Trilinos_EXTRA_LD_FLAGS} ${LINK_FLAGS})
+set(LIBS ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
+include_directories(${Trilinos_INCLUDE_DIRS} ${Trilinos_TPL_INCLUDE_DIRS})
+
+# dynamic linking with boost test framework
+add_definitions("-DBOOST_TEST_DYN_LINK") 
+
+# define some directories
+set(SRC_DIR "../src")
+set(COMMON_DIR "${SRC_DIR}/common")
+set(TEST_DIR "${SRC_DIR}/tests")
+
+# for building common tools
+include_directories(${COMMON_DIR})
+set(COMMON_SOURCE
+  "${COMMON_DIR}/simple_mesh.cpp")
+add_library(common ${COMMON_SOURCE})
+set(LIBS common ${LIBS})
+
+# for building tests
+set(TEST_SOURCE		
+    "${TEST_DIR}/init_test.cpp"	
+    "${TEST_DIR}/simple_mesh_test.cpp"
+    "${TEST_DIR}/work_set_test.cpp"
+    "${TEST_DIR}/laplace.cpp"
+    "${TEST_DIR}/laplace_test.cpp")
+add_executable(test.bin ${TEST_SOURCE})
+#add_definitions("-DBOOST_TEST_MODULE=\"DaVinci test\"")
+target_link_libraries(test.bin ${LIBS})
+target_link_libraries(test.bin boost_unit_test_framework)
