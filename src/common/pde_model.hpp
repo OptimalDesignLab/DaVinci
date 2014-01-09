@@ -20,18 +20,18 @@ using Teuchos::ArrayRCP;
 /*!
  * \class PDEModel
  * \brief Class for PDE models
- * \tparam MeshType - a generic class of mesh
+ * \tparam MeshT - a generic class of mesh
  * \tparam Equation - a generic equation (workset) class
  *
  * This templated class should be used to create classes for PDE
  * discretizations.
  * 
- * This class is templated on MeshType for speed.  We could have included a
+ * This class is templated on MeshT for speed.  We could have included a
  * pointer to an abstract Mesh base class, but this would have introduced
  * dynamic polymorphism (which has a runtime overhead cost) on methods that need
  * to be fast.
  */
-template <typename MeshType, typename Equation>
+template <typename MeshT, typename Equation>
 class PDEModel : public Model {
  public:
 
@@ -50,7 +50,7 @@ class PDEModel : public Model {
    * \param[in] p - a list of options needed to initialize the desired mesh
    *
    * By using a Teuchos::ParameterList, we can pass in very general information
-   * that can be used by the underlying MeshType
+   * that can be used by the underlying MeshT
    */
   void InitializeMesh(ParameterList& p);
 
@@ -70,7 +70,7 @@ class PDEModel : public Model {
 
  private:
   int num_sets_; ///< number of equation work sets
-  MeshType mesh_; ///< mesh object
+  MeshT mesh_; ///< mesh object
   //ArrayRCP<Equation> work_set_; ///< array of equation work sets
   Equation work_set_;
 };

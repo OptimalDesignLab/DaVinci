@@ -42,6 +42,8 @@ struct SimpleMeshTypes {
  * for "serious" applications.  Simplex elements are assumed (presently).
  */
 class SimpleMesh { //: public MeshAPI<SimpleMesh, SimpleMeshTypes> {
+ private:
+  typedef double ScalarT; ///< should be a template?
  public:
   typedef int elem_idx_type_; ///< integer type used for elements
   typedef int node_idx_type_; ///< integer type used for nodes
@@ -89,14 +91,31 @@ class SimpleMesh { //: public MeshAPI<SimpleMesh, SimpleMeshTypes> {
    * \param[in] elem - element/cell index
    * \param[in] ref_node - the reference node whose global index we want
    * \returns the global index of ref_node on elem
-   *
-   * Prefer to use the alias ElemToNode, defined in the base class.
-   * TODO: try making this private after testing
    */
   const int& ElemToNode(const int& elem, const int& ref_node) const;
+
+  /*!
+   * \brief access to coordinate of a given element's node
+   * \param[in] elem - element/cell index
+   * \param[in] ref_node - the reference node whose global index we want
+   * \param[in] dim - spatial dimension that we want
+   * \returns x[dim] where x is the coordinate of ref_node on elem
+   */
+  const double& ElemNodeCoord(const int& elem, const int& ref_node,
+                              const int& dim) const;
+
+  /*!
+   * \brief copy the coordinates of the nodes in the given workset of elements
+   * \param[out] coords - array to store the coordinates in
+   * \param[in] set_idx - the workset index we want the coordinates from
+   * \param[in] num_elems_per_set - the number of elements in each (typical) set
+   * \param[in] num_sets - the total number of sets
+   */
+  void CopyElemNodeCoords(FieldContainer<ScalarT>& coords, const int& set_idx,
+                          const int& num_elems_per_set,
+                          const int& num_sets) const;
   
  private:  
-  typedef double ScalarT; ///< should be a template?
   int dim_; ///< spatial dimension
   int num_nodes_; ///< number of nodes
   int num_elems_; ///< number of elements
@@ -112,6 +131,10 @@ inline const int& SimpleMesh::get_num_elems() const { return num_elems_; }
 inline const int& SimpleMesh::ElemToNode(
     const int& elem, const int& ref_node) const {
   return elem_to_node_(elem, ref_node); }
+inline const double& SimpleMesh::ElemNodeCoord(
+    const int& elem, const int& ref_node, const int& dim) const {
+  node_coord_(elem_to_node_(elem, ref_node), dim); }
+
   
 } // namespace davinci
 

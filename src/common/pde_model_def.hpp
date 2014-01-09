@@ -6,23 +6,28 @@
 
 namespace davinci {
 //==============================================================================
-template<typename MeshType, typename Equation>
-PDEModel<MeshType,Equation>::PDEModel(
+template<typename MeshT, typename Equation>
+PDEModel<MeshT,Equation>::PDEModel(
     ostream& out, const RCP<const Comm<int> >& comm)
     : Model(out,comm), mesh_(out), work_set_(out) {
 }
 //==============================================================================
-template<typename MeshType, typename Equation>
-void PDEModel<MeshType,Equation>::InitializeMesh(ParameterList& p) {
+template<typename MeshT, typename Equation>
+void PDEModel<MeshT,Equation>::InitializeMesh(ParameterList& p) {
   mesh_.Initialize(p);
 }
 //==============================================================================
-template<typename MeshType, typename Equation>
-void PDEModel<MeshType,Equation>::InitializeEquationSet(ParameterList& p) {
-  typedef typename MeshType::elem_idx_type_ elem_idx_type;
+template<typename MeshT, typename Equation>
+void PDEModel<MeshT,Equation>::InitializeEquationSet(ParameterList& p) {
+  typedef typename MeshT::elem_idx_type_ elem_idx_type;
   elem_idx_type num_elems = mesh_.get_num_elems();
   int batch_size = p.get("Batch Size", num_elems);
-  num_sets_ = num_elems/batch_size;
+  Teuchos::RCP<const CellTopologyData> cell(
+      p.get<const CellTopologyData*>("Topology"), false);
+  work_set_.DefineTopology(cell);
+  work_set_.DefineCubature(p.get<int>("Cubature Degree"));
+  typedef typename Equation::RealT ScalarT;
+  //work_set_.DefineBasis(*p.get("Basis"));
   //work_set_.resize(num_sets_);
   //ArrayRCP<Equation>::iterator set_it;
   //for (set_it = work_set_.begin(); set_it != work_set.end(); set_it++)

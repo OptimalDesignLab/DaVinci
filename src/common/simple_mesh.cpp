@@ -87,4 +87,23 @@ void SimpleMesh::BuildRectangularMesh(const double& Lx, const double& Ly,
   }
 }
 //==============================================================================
+void SimpleMesh::CopyElemNodeCoords(FieldContainer<ScalarT>& coords,
+                                    const int& set_idx,
+                                    const int& num_elems_per_set,
+                                    const int& num_sets) const {
+  BOOST_ASSERT_MSG(set_idx >= 0 && set_idx < num_sets,
+                   "set_idx number must be positive and less than num_sets_");
+  // copy the physical cell coordinates
+  int set_num_elems = num_elems_per_set;
+  if (set_idx == num_sets-1)
+    set_num_elems = num_elems_ - (set_idx*num_elems_per_set);
+  int num_nodes_per_elem = 3;
+  for (int ielem = 0; ielem < set_num_elems; ielem++) {
+    int k = set_idx*num_elems_per_set + ielem;
+    for (int i = 0; i < num_nodes_per_elem; i++)
+      for (int j = 0; j < dim_; j++)
+        coords(ielem, i, j) = node_coord_(elem_to_node_(ielem, i), j);
+  }
+}
+//==============================================================================
 } // namespace davinci
