@@ -31,6 +31,7 @@ void WorkSet<ScalarT,MeshT>::DefineTopology(
   topology_ = Teuchos::rcp(new CellTopology(cell.get()));
   num_nodes_per_elem_ = topology_->getNodeCount();
   dim_ = topology_->getDimension(); // !!! this is not general enough
+  *out_ << "WorkSet dimension = " << dim_ << "\n";
 }
 //==============================================================================
 template <typename ScalarT, typename MeshT>
@@ -102,11 +103,9 @@ void WorkSet<ScalarT,MeshT>::CopyMeshCoords(const MeshT& mesh,
   if (set_idx == num_sets_-1) set_num_elems = rem_num_elems_;
   for (int ielem = 0; ielem < set_num_elems; ielem++) {
     int k = set_idx*num_elems_ + ielem;
-    for (int i = 0; i < num_nodes_per_elem_; i++) {
-      node_coords_(ielem,i,0) = mesh.ElemNodeCoord(k,i,0);
-      node_coords_(ielem,i,1) = mesh.ElemNodeCoord(k,i,1);
-      node_coords_(ielem,i,2) = mesh.ElemNodeCoord(k,i,2);
-    }
+    for (int i = 0; i < num_nodes_per_elem_; i++)
+      for (int j = 0; j < dim_; j++) 
+        node_coords_(ielem,i,j) = mesh.ElemNodeCoord(k,i,j);
   }
 }
 //==============================================================================

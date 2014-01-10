@@ -11,6 +11,7 @@
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_ParameterList.hpp"
 #include "Intrepid_FieldContainer.hpp"
+#include "mesh_api.hpp"
 
 namespace davinci {
 
@@ -19,21 +20,6 @@ using Teuchos::RCP;
 using Teuchos::ParameterList;
 using Intrepid::FieldContainer;
 
-#if 0
-/*!
- * \struct SimpleMeshTypes
- * \brief types that are used by the SimpleMesh class
- *
- * These typedefs are needed by the MeshAPI base class.  Any class derived from
- * MeshAPI must also define a MeshTypes.
- */
-struct SimpleMeshTypes {
-  typedef int elem_idx_type_; ///< integer type used for elements
-  typedef int node_idx_type_; ///< integer type used for nodes
-  typedef int ref_idx_type_ ; ///< integer type used for reference nodes
-};
-#endif
-
 /*!
  * \class SimpleMesh
  * \brief a basic mesh for unit testing
@@ -41,13 +27,10 @@ struct SimpleMeshTypes {
  * This class can be used for unit testing of PDE models.  It should not be used
  * for "serious" applications.  Simplex elements are assumed (presently).
  */
-class SimpleMesh { //: public MeshAPI<SimpleMesh, SimpleMeshTypes> {
+class SimpleMesh : public MeshAPI<int,int> {
  private:
   typedef double ScalarT; ///< should be a template?
  public:
-  typedef int elem_idx_type_; ///< integer type used for elements
-  typedef int node_idx_type_; ///< integer type used for nodes
-  typedef int ref_idx_type_ ; ///< integer type used for reference nodes
 
   /*!
    * \brief default constructor
@@ -134,7 +117,6 @@ inline const int& SimpleMesh::ElemToNode(
 inline const double& SimpleMesh::ElemNodeCoord(
     const int& elem, const int& ref_node, const int& dim) const {
   node_coord_(elem_to_node_(elem, ref_node), dim); }
-
   
 } // namespace davinci
 
