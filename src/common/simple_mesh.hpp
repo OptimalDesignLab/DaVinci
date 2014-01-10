@@ -28,8 +28,6 @@ using Intrepid::FieldContainer;
  * for "serious" applications.  Simplex elements are assumed (presently).
  */
 class SimpleMesh : public MeshAPI<int,int> {
- private:
-  typedef double ScalarT; ///< should be a template?
  public:
 
   /*!
@@ -94,7 +92,7 @@ class SimpleMesh : public MeshAPI<int,int> {
    * \param[in] num_elems_per_set - the number of elements in each (typical) set
    * \param[in] num_sets - the total number of sets
    */
-  void CopyElemNodeCoords(FieldContainer<ScalarT>& coords, const int& set_idx,
+  void CopyElemNodeCoords(FieldContainer<double>& coords, const int& set_idx,
                           const int& num_elems_per_set,
                           const int& num_sets) const;
   

@@ -29,6 +29,9 @@ using Intrepid::FieldContainer;
  *
  * \remark This class is templated on NodeIntT and ElemIntT to account for
  * libraries that use long int or unsigned integers for indices.
+ *
+ * \remark We may want to consider using the Template Method pattern here (see
+ * "Virtuality" in C/C++ Users Journal, 19(9), Sept 2001).
  */
 template <typename NodeIntT, typename ElemIntT> 
 class MeshAPI {

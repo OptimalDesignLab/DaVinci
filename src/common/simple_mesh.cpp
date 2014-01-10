@@ -47,17 +47,17 @@ void SimpleMesh::BuildRectangularMesh(const double& Lx, const double& Ly,
 #endif
 
   // Define node coordinates and determine boundary nodes
-  ScalarT x0 = 0.0;
-  ScalarT y0 = 0.0;
-  ScalarT hx = 1.0/static_cast<double>(Nx);
-  ScalarT hy = 1.0/static_cast<double>(Ny);
+  double x0 = 0.0;
+  double y0 = 0.0;
+  double hx = 1.0/static_cast<double>(Nx);
+  double hy = 1.0/static_cast<double>(Ny);
   node_coord_.resize(num_nodes_, dim_);
   node_type_.resize(num_nodes_);
   int inode = 0;
   for (int j=0; j<Ny+1; j++) {
     for (int i=0; i<Nx+1; i++) {
-      node_coord_(inode,0) = x0 + (ScalarT)i*hx;
-      node_coord_(inode,1) = y0 + (ScalarT)j*hy;
+      node_coord_(inode,0) = x0 + (double)i*hx;
+      node_coord_(inode,1) = y0 + (double)j*hy;
       if (j==0 || i==0 || j==Ny || i==Nx) {
         node_type_(inode) = 1;
       } else {
@@ -87,7 +87,7 @@ void SimpleMesh::BuildRectangularMesh(const double& Lx, const double& Ly,
   }
 }
 //==============================================================================
-void SimpleMesh::CopyElemNodeCoords(FieldContainer<ScalarT>& coords,
+void SimpleMesh::CopyElemNodeCoords(FieldContainer<double>& coords,
                                     const int& set_idx,
                                     const int& num_elems_per_set,
                                     const int& num_sets) const {
