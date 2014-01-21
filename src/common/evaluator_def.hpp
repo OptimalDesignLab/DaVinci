@@ -34,4 +34,13 @@ RCP<FieldContainer<T> > GenerateView(
       dimensions, data.persistingView(offset, size)));
 }
 //==============================================================================
+template <typename T, int N>
+RCP<FieldContainer<const T> > GenerateConstView(
+    ArrayRCP<T>& data, const int& offset, const Tuple<int,N>& dimensions) {
+  int size = 1;
+  for (int i = 0; i < N; i++) size *= dimensions[i];
+  return Teuchos::rcp(new FieldContainer<const T>(
+      dimensions, data.persistingView(offset, size)));
+}
+//==============================================================================
 }

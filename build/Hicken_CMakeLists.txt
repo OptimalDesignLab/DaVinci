@@ -38,8 +38,8 @@ set(LIBS common ${LIBS})
 set(TEST_SOURCE		
     "${TEST_DIR}/init_test.cpp"	
     "${TEST_DIR}/simple_mesh_test.cpp"
-    "${TEST_DIR}/metric_jacobian_test.cpp")
-#    "${TEST_DIR}/laplace_test.cpp")
+    "${TEST_DIR}/metric_jacobian_test.cpp"
+    "${TEST_DIR}/laplace_test.cpp")
 #    "${TEST_DIR}/work_set_test.cpp"
 #   "${TEST_DIR}/laplace.cpp"
 #    "${TEST_DIR}/laplace_test.cpp")

@@ -155,6 +155,22 @@ template <typename T, int N>
 RCP<FieldContainer<T> > GenerateView(
     ArrayRCP<T>& data, const int& offset, const Tuple<int,N>& dimensions);
 
+/*!
+ * \brief creates a multi-dimensional array view of 1-d arrary const data
+ * \relates Evaluator
+ * \tparam T - type of data stored in the array
+ * \tparam N - number of dimensions
+ * \param[in] data - 1d array that we want a multi-dimensional view of
+ * \param[in] offset - offset to beginning of desired data
+ * \param[in] dimensions - the dimensions of each index of the multi-array
+ * \returns multi-dimensional array view of the const data
+ *
+ * Same as GenerateView, but useful when we do not want to alter data
+ */
+template <typename T, int N>
+RCP<FieldContainer<const T> > GenerateConstView(
+    ArrayRCP<T>& data, const int& offset, const Tuple<int,N>& dimensions);
+
 } // namespace davinci
 
 // include the templated defintions

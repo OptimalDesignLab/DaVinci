@@ -93,9 +93,9 @@ class Laplace : public Evaluator<NodeT,ScalarT> {
   using Evaluator<NodeT,ScalarT>::dim_;
   
   // inputs
-  RCP<FieldContainer<NodeT> > jacob_inv_; ///< metric Jacobian inverse
-  RCP<FieldContainer<NodeT> > jacob_det_; ///< determinant of metric Jacobian
-  RCP<FieldContainer<ScalarT> > solution_coeff_; ///< solution coefficients
+  RCP<FieldContainer<const NodeT> > jacob_inv_; ///< metric Jacobian inverse
+  RCP<FieldContainer<const NodeT> > jacob_det_; ///< determinant of Jacobian
+  RCP<FieldContainer<const ScalarT> > solution_coeff_; ///< solution coefficients
 
   // outputs
   RCP<FieldContainer<NodeT> > jacob_cub_; ///< Jacobian det. weighted by cub

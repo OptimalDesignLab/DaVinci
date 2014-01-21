@@ -141,13 +141,12 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
   }
   jacob->Evaluate(topology, cub_points, cub_weights, vals, grads);
 
-  // replace this with a Boost assert for double comparison
-  std::cout << "Jacobian determinant: ";
+  // check that Jacobian determinant is 1.0 at all cubature points
   for (int i = 0; i < num_elems; i++)
-    for (int j = 0; j < num_cub_points; j++)
-      std::cout << mesh_data[mesh_map_offset["jacob_det"]+i*num_cub_points+j]
-                << " ";
-  std::cout << "\n";
+    for (int j = 0; j < num_cub_points; j++) {
+      BOOST_CHECK_CLOSE(mesh_data[mesh_map_offset["jacob_det"]
+                                  +i*num_cub_points+j], 1.0, 1e-13);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -92,7 +92,7 @@ class MetricJacobian : public Evaluator<NodeT,ScalarT> {
   using Evaluator<NodeT,ScalarT>::dim_;
 
   // inputs
-  RCP<FieldContainer<NodeT> > node_coords_; ///< element node coordinates
+  RCP<FieldContainer<const NodeT> > node_coords_; ///< element node coordinates
 
   // outputs
   RCP<FieldContainer<NodeT> > jacob_; ///< metric Jacobian at the cubature points

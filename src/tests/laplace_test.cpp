@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(Constructors) {
 }
 
 BOOST_AUTO_TEST_CASE(SetDimensions) {
-  Evaluator<double,double>* laplace_pde() = new Laplace<double,double>();
+  Evaluator<double,double>* laplace_pde = new Laplace<double,double>();
   int num_elems = 10;
   int num_nodes_per_elem = 3;
   int num_cub_points = 10;
@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(SetDimensions) {
 }
 
 BOOST_AUTO_TEST_CASE(MemoryRequired) {
-  Evaluator<double,double>* laplace_pde() = new Laplace<double,double>();
+  Evaluator<double,double>* laplace_pde = new Laplace<double,double>();
   int num_elems = 10;
   int num_nodes_per_elem = 3;
   int num_cub_points = 10;
@@ -68,29 +68,38 @@ BOOST_AUTO_TEST_CASE(MemoryRequired) {
   BOOST_CHECK_EQUAL( soln_offset, 0);
 }
 
-#if 0
+
 BOOST_AUTO_TEST_CASE(SetDataView) {
-  Evaluator<double,double>* jacob = new MetricJacobian<double,double>();
+  Evaluator<double,double>* laplace_pde = new Laplace<double,double>();
   int num_elems = 10;
   int num_nodes_per_elem = 3;
   int num_cub_points = 10;
   int num_ref_basis = 3;
   int dim = 2;
-  jacob->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
-                       num_ref_basis, dim);
-  int mesh_offset = num_elems*num_nodes_per_elem*dim;
-  int soln_offset = 0;
-  std::map<std::string,int> mesh_field_offset, soln_field_offset;
-  mesh_field_offset["node_coords"] = 0;
-  jacob->MemoryRequired(mesh_offset, soln_offset, mesh_field_offset,
-                        soln_field_offset);
+  laplace_pde->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
+                             num_ref_basis, dim);
+  int mesh_offset = num_elems*num_cub_points*(1 + dim*dim);
+  int soln_offset = num_elems*num_ref_basis;
+  int resid_offset = 0;
+  std::map<std::string,int> mesh_map_offset, soln_map_offset, resid_map_offset;
+  mesh_map_offset["jacob_inv"] = 0;
+  mesh_map_offset["jacob_det"] = num_elems*num_cub_points*dim*dim;
+  soln_map_offset["solution_coeff"] = 0;
+  laplace_pde->MemoryRequired(mesh_offset, mesh_map_offset,
+                              soln_offset, soln_map_offset,
+                              resid_offset, resid_map_offset);
   Teuchos::ArrayRCP<double> mesh_data(mesh_offset, 1.0);
   Teuchos::ArrayRCP<double> soln_data(soln_offset, 1.0);
-  jacob->SetDataViews(mesh_data, soln_data, mesh_field_offset, soln_field_offset);
+  Teuchos::ArrayRCP<typename davinci::Evaluator<double,double>::ResidT>
+      resid_data(resid_offset, 1.0);
+  laplace_pde->SetDataViews(mesh_data, mesh_map_offset,
+                            soln_data, soln_map_offset,
+                            resid_data, resid_map_offset);
 }
 
 BOOST_AUTO_TEST_CASE(Evaluate) {
   Evaluator<double,double>* jacob = new MetricJacobian<double,double>();
+  Evaluator<double,double>* laplace_pde = new Laplace<double,double>();
   int num_elems = 10;
   int dim = 2;
 
@@ -117,19 +126,38 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
   basis.getValues(vals, cub_points, Intrepid::OPERATOR_VALUE);
   basis.getValues(grads, cub_points, Intrepid::OPERATOR_GRAD);
 
-  // Initialize the MetricJacobian evaluator
+  // Determine memory requirements
+  std::cout << "memory requirements...\n";
   jacob->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
                        num_ref_basis, dim);
-  int mesh_offset = num_elems*num_nodes_per_elem*dim;
-  int soln_offset = 0;
-  std::map<std::string,int> mesh_field_offset, soln_field_offset;
-  mesh_field_offset["node_coords"] = 0;
-  jacob->MemoryRequired(mesh_offset, soln_offset, mesh_field_offset,
-                        soln_field_offset);
+  laplace_pde->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
+                             num_ref_basis, dim);
+  int mesh_offset = num_elems*num_nodes_per_elem*dim; // for nodes
+  int soln_offset = num_elems*num_ref_basis; // for solution coeffs
+  int resid_offset = 0;
+  std::map<std::string,int> mesh_map_offset, soln_map_offset, resid_map_offset;
+  mesh_map_offset["node_coords"] = 0;
+  soln_map_offset["solution_coeff"] = 0;
+  jacob->MemoryRequired(mesh_offset, mesh_map_offset,
+                        soln_offset, soln_map_offset,
+                        resid_offset, resid_map_offset);
+  laplace_pde->MemoryRequired(mesh_offset, mesh_map_offset,
+                          soln_offset, soln_map_offset,
+                          resid_offset, resid_map_offset);
+
+  // allocate memory and set data views
+  std::cout << "memory allocate...\n";
   Teuchos::ArrayRCP<double> mesh_data(mesh_offset, 1.0);
   Teuchos::ArrayRCP<double> soln_data(soln_offset, 1.0);
-  jacob->SetDataViews(mesh_data, soln_data, mesh_field_offset, soln_field_offset);
-
+  Teuchos::ArrayRCP<typename davinci::Evaluator<double,double>::ResidT>
+      resid_data(resid_offset, 1.0);
+  jacob->SetDataViews(mesh_data, mesh_map_offset,
+                      soln_data, soln_map_offset,
+                      resid_data, resid_map_offset);
+  laplace_pde->SetDataViews(mesh_data, mesh_map_offset,
+                            soln_data, soln_map_offset,
+                            resid_data, resid_map_offset);
+  
   // define node coordinates; the elements do not need to be adjacent
   for (int i = 0; i < num_elems; i++) {
     // node 1
@@ -142,16 +170,20 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
     mesh_data[i*num_nodes_per_elem*dim+4] = static_cast<double>(i); //< x
     mesh_data[i*num_nodes_per_elem*dim+5] = 1.0; //< y
   }
+  // define the solution coefficients (u(x,y) = x)
+  for (int i = 0; i < num_elems; i++) {
+    // node 1
+    soln_data[i*num_ref_basis] = static_cast<double>(i);
+    // node 2
+    soln_data[i*num_ref_basis+1] = static_cast<double>(i+1);
+    // node 3
+    soln_data[i*num_ref_basis+2] = static_cast<double>(i);
+  }
+  std::cout << "jacob evaluate...\n";
   jacob->Evaluate(topology, cub_points, cub_weights, vals, grads);
-
-  // replace this with a Boost assert for double comparison
-  std::cout << "Jacobian determinant: ";
-  for (int i = 0; i < num_elems; i++)
-    for (int j = 0; j < num_cub_points; j++)
-      std::cout << mesh_data[mesh_field_offset["jacob_det"]+i*num_cub_points+j]
-                << " ";
-  std::cout << "\n";
+  std::cout << "laplace_pde evaluate...\n";
+  laplace_pde->Evaluate(topology, cub_points, cub_weights, vals, grads);
+  std::cout << "clean up...\n";
 }
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()

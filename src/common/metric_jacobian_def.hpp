@@ -48,32 +48,16 @@ void MetricJacobian<NodeT,ScalarT>::SetDataViews(
     ArrayRCP<MetricJacobian<NodeT,ScalarT>::ResidT>& resid_data,
     map<string,int>& resid_map_offset) {
   using Teuchos::tuple;
+  // views of inputs
+  node_coords_ = GenerateConstView(mesh_data, mesh_map_offset.at("node_coords"),
+                                   tuple(num_elems_, num_nodes_per_elem_, dim_));
+  // views of outputs
   jacob_ = GenerateView(mesh_data, mesh_map_offset.at("jacob"),
                         tuple(num_elems_, num_cub_points_, dim_, dim_));
   jacob_inv_ = GenerateView(mesh_data, mesh_map_offset.at("jacob_inv"),
                             tuple(num_elems_, num_cub_points_, dim_, dim_));
   jacob_det_ = GenerateView(mesh_data, mesh_map_offset.at("jacob_det"),
                             tuple(num_elems_, num_cub_points_));
-  node_coords_ = GenerateView(mesh_data, mesh_map_offset.at("node_coords"),
-                              tuple(num_elems_, num_nodes_per_elem_, dim_));
-#if 0  
-  jacob_ = Teuchos::rcp(new FieldContainer<NodeT>(
-      Teuchos::tuple(num_elems_, num_cub_points_, dim_, dim_),
-      mesh_data.persistingView(mesh_map_offset.at("jacob"),
-                               num_elems_*num_cub_points_*dim_*dim_)) );
-  jacob_inv_ = Teuchos::rcp(new FieldContainer<NodeT>(
-      Teuchos::tuple(num_elems_, num_cub_points_, dim_, dim_),
-      mesh_data.persistingView(mesh_map_offset.at("jacob_inv"),
-                               num_elems_*num_cub_points_*dim_*dim_)) );
-  jacob_det_ = Teuchos::rcp(new FieldContainer<NodeT>(
-      Teuchos::tuple(num_elems_, num_cub_points_),
-      mesh_data.persistingView(mesh_map_offset.at("jacob_det"),
-                               num_elems_*num_cub_points_)) );
-  node_coords_ = Teuchos::rcp(new FieldContainer<NodeT>(
-      Teuchos::tuple(num_elems_, num_nodes_per_elem_, dim_),
-      mesh_data.persistingView(mesh_map_offset.at("node_coords"),
-                               num_elems_*num_nodes_per_elem_*dim_)) );
-#endif
 }
 //==============================================================================
 template <typename NodeT, typename ScalarT>
