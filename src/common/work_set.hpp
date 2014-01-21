@@ -8,6 +8,7 @@
 #define DAVINCI_SRC_COMMON_WORK_SET_HPP
 
 #include "Teuchos_RCP.hpp"
+#include "Teuchos_ArrayRCPDecl.hpp"
 #include "Shards_CellTopology.hpp"
 #include "Shards_CellTopologyData.h"
 #include "Intrepid_FieldContainer.hpp"
@@ -17,6 +18,7 @@ namespace davinci {
 
 using std::ostream;
 using Teuchos::RCP;
+using Teuchos::ArrayRCP;
 using shards::CellTopology;
 using Intrepid::FieldContainer;
 using Intrepid::Basis;
@@ -24,22 +26,23 @@ using Intrepid::Basis;
 /*!
  * \class WorkSet
  * \brief a collection of data and functions for common-type "elements"
- * \tparam ScalarT - the scalar type (float, double, sacado AD, etc)
+ * \tparam NodeT - the scalar type for node-based data (float, double, sacado AD, etc)
+ * \tparam ScalarT - the scalar type for sol-based data (float, double, sacado AD, etc)
  * \tparam MeshT - a generic class of mesh
  *
  * A workset is used to evaluate residuals and Jacobians for a set of "elements"
  * with identical topology.
  *
- * \remark It is anticipated the these elements may be finite elements, their
- * faces, or their edges.  For example, we may use a WorkSet for volume
- * integrals in the semi-linear form, and a separate WorkSet for surface
- * integrals.  This has yet to be decided.
+ * \remark It is anticipated the these elements may be elements, their faces, or
+ * their edges.  For example, we may use a WorkSet for volume integrals in the
+ * semi-linear form, and a separate WorkSet for surface integrals.  This has yet
+ * to be decided.
  *
  * \remark Should we bother keeping the topology_ and basis_ members, or should
  * the information provided by these be stripped out, similar to the cubature?
  * At least one of these seems redundant.
  */
-template <typename ScalarT, typename MeshT>
+template <typename NodeT, typename ScalarT, typename MeshT>
 class WorkSet {
  public:
   typedef ScalarT RealT;
@@ -70,6 +73,12 @@ class WorkSet {
    * \todo Make a check for consistency with topology_!
    */
   void DefineBasis(const Basis<ScalarT, FieldContainer<ScalarT> >& basis);
+
+  /*!
+   * \brief sets the evaluators that define the problem on this workset
+   * \param[in] eval_list - a list of evaluators
+   */
+  void DefineEvaluators();
   
   /*!
    * \brief defines the size of the workset fields
@@ -104,15 +113,16 @@ class WorkSet {
   RCP<CellTopology> topology_; ///< element topology
   RCP<const Basis<ScalarT, FieldContainer<ScalarT> >
       > basis_; ///< finite element basis on reference element
-  FieldContainer<ScalarT> cub_points_; ///< cubature point locations
-  FieldContainer<ScalarT> cub_weights_; ///< cubature weights
-  FieldContainer<ScalarT> vals_; ///< basis values at cub points on ref element
-  FieldContainer<ScalarT> grads_; ///< gradient values at cub points ref element
-  FieldContainer<ScalarT> node_coords_; ///< phys. coordinates of element nodes
-  FieldContainer<ScalarT> jacob_; ///< Jacobian of the reference mapping 
-  FieldContainer<ScalarT> jacob_inv_; ///< inverse Jacobian of the ref. mapping
-  FieldContainer<ScalarT> jacob_det_; ///< determinant of the Jacobian
-  FieldContainer<ScalarT> weighted_measure_; ///< cubature scaled by Jacobian
+  ArrayRCP<Evaluator> evaluators_; ///< graph of the evaluators 
+  FieldContainer<double> cub_points_; ///< cubature point locations
+  FieldContainer<double> cub_weights_; ///< cubature weights
+  FieldContainer<double> vals_; ///< basis values at cub points on ref element
+  FieldContainer<double> grads_; ///< gradient values at cub points ref element
+  //FieldContainer<NodeT> node_coords_; ///< phys. coordinates of element nodes
+  //FieldContainer<ScalarT> jacob_; ///< Jacobian of the reference mapping 
+  //FieldContainer<ScalarT> jacob_inv_; ///< inverse Jacobian of the ref. mapping
+  //FieldContainer<ScalarT> jacob_det_; ///< determinant of the Jacobian
+  //FieldContainer<ScalarT> weighted_measure_; ///< cubature scaled by Jacobian
 };
 
 } // namespace davinci

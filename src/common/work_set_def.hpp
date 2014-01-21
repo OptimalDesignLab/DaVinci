@@ -13,8 +13,8 @@
 
 namespace davinci {
 //==============================================================================
-template <typename ScalarT, typename MeshT>
-WorkSet<ScalarT,MeshT>::WorkSet(ostream& out) {
+template <typename NodeT, typename ScalarT, typename MeshT>
+WorkSet<NodeT,ScalarT,MeshT>::WorkSet(ostream& out) : evaluators_() {
   out_ = Teuchos::rcp(&out, false);
   // initialize sizes to -1 to avoid using uninitialized values accidentally
   dim_ = -1;
@@ -25,8 +25,8 @@ WorkSet<ScalarT,MeshT>::WorkSet(ostream& out) {
   num_sets_ = -1;
 }
 //==============================================================================
-template <typename ScalarT, typename MeshT>
-void WorkSet<ScalarT,MeshT>::DefineTopology(
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::DefineTopology(
     const RCP<const CellTopologyData>& cell) {
   topology_ = Teuchos::rcp(new CellTopology(cell.get()));
   num_nodes_per_elem_ = topology_->getNodeCount();
@@ -34,8 +34,8 @@ void WorkSet<ScalarT,MeshT>::DefineTopology(
   *out_ << "WorkSet dimension = " << dim_ << "\n";
 }
 //==============================================================================
-template <typename ScalarT, typename MeshT>
-void WorkSet<ScalarT,MeshT>::DefineCubature(const int& degree) {
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::DefineCubature(const int& degree) {
   BOOST_ASSERT_MSG(degree > 0 && degree < 10,
                    "cubature degree must be greater than 0 and less than 10");
   // Get numerical integration points and weights for the defined topology
@@ -58,8 +58,8 @@ void WorkSet<ScalarT,MeshT>::DefineCubature(const int& degree) {
 #endif
 }
 //==============================================================================
-template <typename ScalarT, typename MeshT>
-void WorkSet<ScalarT,MeshT>::DefineBasis(
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::DefineBasis(
     const Basis<ScalarT, FieldContainer<ScalarT> >& basis) {
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::DefineBasis: evaluating basis on reference element\n\n";
@@ -74,8 +74,16 @@ void WorkSet<ScalarT,MeshT>::DefineBasis(
   basis_->getValues(grads_, cub_points_, Intrepid::OPERATOR_GRAD);
 }
 //==============================================================================
-template <typename ScalarT, typename MeshT>
-void WorkSet<ScalarT,MeshT>::ResizeSets(const int& total_elems,
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::DefineEvaluators() {
+  // TEMPORARY
+  eval_list.resize(1, CopyNodes());
+  eval_list.resize(2, MetricJacobian());
+  eval_list.resize(3, Laplace());    
+}
+//==============================================================================
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(const int& total_elems,
                                         const int& num_elems_per_set) {
   BOOST_ASSERT_MSG(total_elems > 0, "total_elems must be > 0");
   BOOST_ASSERT_MSG(num_elems_per_set > 0 && num_elems_per_set <= total_elems,
@@ -93,8 +101,8 @@ void WorkSet<ScalarT,MeshT>::ResizeSets(const int& total_elems,
   weighted_measure_.resize(num_elems_, num_cub_points_);
 }
 //==============================================================================
-template <typename ScalarT, typename MeshT>
-void WorkSet<ScalarT,MeshT>::CopyMeshCoords(const MeshT& mesh,
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::CopyMeshCoords(const MeshT& mesh,
                                             const int& set_idx) {
   BOOST_ASSERT_MSG(set_idx >= 0 && set_idx < num_sets_,
                    "set_idx number must be positive and less than num_sets_");
@@ -109,8 +117,8 @@ void WorkSet<ScalarT,MeshT>::CopyMeshCoords(const MeshT& mesh,
   }
 }
 //==============================================================================
-template <typename ScalarT, typename MeshT>
-void WorkSet<ScalarT,MeshT>::BuildSystem(const MeshT& mesh) {
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::BuildSystem(const MeshT& mesh) {
   *out_ << "WorkSet::BuildSystem: must be defined in a derived class\n\n";
   throw(-1);
 }

@@ -101,7 +101,7 @@ class SimpleMesh : public MeshAPI<int,int> {
   int num_nodes_; ///< number of nodes
   int num_elems_; ///< number of elements
   RCP<ostream> out_; ///< output stream
-  FieldContainer<ScalarT> node_coord_; ///< (x,y) coordinates of nodes
+  FieldContainer<double> node_coord_; ///< (x,y) coordinates of nodes
   FieldContainer<int> node_type_; ///< is node on Bnd (1) or not (0)
   FieldContainer<int> elem_to_node_; ///< maps elem ref nodes to global nodes
 };

@@ -1,11 +1,11 @@
 /**
- * \file laplace.hpp
- * \brief class declaration for Laplace evaluator
+ * \file metric_jacobian.hpp
+ * \brief class declaration for MetricJacobian evaluator
  * \author Jason Hicken <jason.hicken@gmail.com>
  */
 
-#ifndef DAVINCI_SRC_COMMON_LAPLACE_HPP
-#define DAVINCI_SRC_COMMON_LAPLACE_HPP
+#ifndef DAVINCI_SRC_COMMON_METRIC_JACOBIAN_HPP
+#define DAVINCI_SRC_COMMON_METRIC_JACOBIAN_HPP
 
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_ArrayRCPDecl.hpp"
@@ -20,13 +20,13 @@ using Teuchos::ArrayRCP;
 using Intrepid::FieldContainer;
 
 /*!
- * \class Laplace
- * \brief computes the Laplace residual, b-Ax, for a given workset
+ * \class MetricJacobian
+ * \brief computes mapping Jacobian, its inverse, and determinant for a workset
  * \tparam NodeT - the scalar type for node-based data (double, sacado AD, etc)
  * \tparam ScalarT - the scalar type for sol-based data (double, sacado AD, etc)
  */
 template <typename NodeT, typename ScalarT>
-class Laplace : public Evaluator<NodeT,ScalarT> {
+class MetricJacobian : public Evaluator<NodeT,ScalarT> {
  private:
   typedef typename Evaluator<NodeT,ScalarT>::ResidT ResidT;
  public:
@@ -34,7 +34,7 @@ class Laplace : public Evaluator<NodeT,ScalarT> {
   /*!
    * \brief default constructor that defines the output and input dependencies
    */
-  Laplace();
+  MetricJacobian();
 
   /*!
    * \brief memory requirements and offsets for dependent fields
@@ -54,7 +54,7 @@ class Laplace : public Evaluator<NodeT,ScalarT> {
       int& mesh_offset, map<string,int>& mesh_map_offset,
       int& soln_offset, map<string,int>& soln_map_offset,
       int& resid_offset, map<string,int>& resid_map_offset) const;
-
+  
   /*!
    * \brief shallow copies 1-d array data into FieldContainers for easier access
    * \param[in] mesh_data - 1-d array of mesh-based data
@@ -89,25 +89,20 @@ class Laplace : public Evaluator<NodeT,ScalarT> {
   using Evaluator<NodeT,ScalarT>::num_elems_;
   using Evaluator<NodeT,ScalarT>::num_nodes_per_elem_;
   using Evaluator<NodeT,ScalarT>::num_cub_points_;
-  using Evaluator<NodeT,ScalarT>::num_ref_basis_;
   using Evaluator<NodeT,ScalarT>::dim_;
-  
+
   // inputs
-  RCP<FieldContainer<NodeT> > jacob_inv_; ///< metric Jacobian inverse
-  RCP<FieldContainer<NodeT> > jacob_det_; ///< determinant of metric Jacobian
-  RCP<FieldContainer<ScalarT> > solution_coeff_; ///< solution coefficients
+  RCP<FieldContainer<NodeT> > node_coords_; ///< element node coordinates
 
   // outputs
-  RCP<FieldContainer<NodeT> > jacob_cub_; ///< Jacobian det. weighted by cub
-  RCP<FieldContainer<NodeT> > grads_transformed_; ///< basis grads in phys. space
-  RCP<FieldContainer<NodeT> > grads_transformed_weighted_; ///< weighed by cub.
-  RCP<FieldContainer<ResidT> > solution_grad_; ///< gradient of solution at cub.
-  RCP<FieldContainer<ResidT> > residual_; ///< residual over workset
+  RCP<FieldContainer<NodeT> > jacob_; ///< metric Jacobian at the cubature points
+  RCP<FieldContainer<NodeT> > jacob_inv_; ///< inverse metric Jacobian at cub pts
+  RCP<FieldContainer<NodeT> > jacob_det_; ///< metric Jacobian determinant
 };
 
 } // namespace davinci
 
 // include the templated defintions
-#include "laplace_def.hpp"
+#include "metric_jacobian_def.hpp"
 
 #endif

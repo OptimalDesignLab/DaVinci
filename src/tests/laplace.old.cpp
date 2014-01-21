@@ -21,7 +21,7 @@ void Laplace::ResizeSets(const int& total_elems, const int& num_elems_per_set) {
   local_stiff_matrix_.resize(num_elems_, num_ref_basis_, num_ref_basis_);
   grads_transformed_.resize(num_elems_, num_ref_basis_, num_cub_points_, dim_);
   grads_transformed_weighted_.resize(num_elems_, num_ref_basis_,
-                                     num_cub_points_, dim_);  
+                                     num_cub_points_, dim_);
 }
 //==============================================================================
 void Laplace::BuildSystem(const SimpleMesh& mesh) {

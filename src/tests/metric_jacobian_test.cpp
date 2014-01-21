@@ -1,6 +1,6 @@
 /**
- * \file laplace_test.cpp
- * \brief unit test for the Laplace class
+ * \file metric_jacobian_test.cpp
+ * \brief unit test for the MetricJacobian class
  * \author Jason Hicken <jason.hicken@gmail.com>
  */
 
@@ -11,64 +11,53 @@
 #include "Intrepid_FieldContainer.hpp"
 #include "Intrepid_DefaultCubatureFactory.hpp"
 #include "metric_jacobian.hpp"
-#include "laplace.hpp"
 
 using Teuchos::RCP;
 using Intrepid::CellTools;
 using Intrepid::FieldContainer;
 using davinci::Evaluator;
 using davinci::MetricJacobian;
-using davinci::Laplace;
 
-BOOST_AUTO_TEST_SUITE(Laplace_suite)
+BOOST_AUTO_TEST_SUITE(MetricJacobian_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  Laplace<double,double> laplace_pde();
+  MetricJacobian<double,double> jacob();
 }
 
 BOOST_AUTO_TEST_CASE(SetDimensions) {
-  Evaluator<double,double>* laplace_pde() = new Laplace<double,double>();
+  Evaluator<double,double>* jacob = new MetricJacobian<double,double>();
   int num_elems = 10;
   int num_nodes_per_elem = 3;
   int num_cub_points = 10;
   int num_ref_basis = 3;
   int dim = 3;
-  laplace_pde->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
-                             num_ref_basis, dim);
+  jacob->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
+                       num_ref_basis, dim);
 }
 
 BOOST_AUTO_TEST_CASE(MemoryRequired) {
-  Evaluator<double,double>* laplace_pde() = new Laplace<double,double>();
+  Evaluator<float,double>* jacob = new MetricJacobian<float,double>();
   int num_elems = 10;
   int num_nodes_per_elem = 3;
   int num_cub_points = 10;
   int num_ref_basis = 3;
   int dim = 2;
-  laplace_pde->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
-                             num_ref_basis, dim);
+  jacob->SetDimensions(num_elems, num_nodes_per_elem, num_cub_points,
+                       num_ref_basis, dim);
   int mesh_offset = 0;
   int soln_offset = 0;
   int resid_offset = 0;
   std::map<std::string,int> mesh_map_offset, soln_map_offset, resid_map_offset;
-  laplace_pde->MemoryRequired(mesh_offset, mesh_map_offset,
-                              soln_offset, soln_map_offset,
-                              resid_offset, resid_map_offset);
-  BOOST_CHECK_EQUAL( mesh_map_offset["jacob_cub"], 0);
-  BOOST_CHECK_EQUAL( mesh_map_offset["grads_transformed"],
-                     num_elems*num_cub_points);
-  BOOST_CHECK_EQUAL( mesh_map_offset["grads_transformed_weighted"],
-                     num_elems*num_cub_points*(1 + num_ref_basis*dim));
-  BOOST_CHECK_EQUAL( mesh_offset,
-                     num_elems*num_cub_points*(1 + 2*num_ref_basis*dim));
-  BOOST_CHECK_EQUAL( resid_map_offset["solution_grad"], 0);
-  BOOST_CHECK_EQUAL( resid_map_offset["residual"],
-                     num_elems*num_cub_points*dim);
-  BOOST_CHECK_EQUAL( resid_offset,
-                     num_elems*(num_cub_points*dim + num_ref_basis));
-  BOOST_CHECK_EQUAL( soln_offset, 0);
+  jacob->MemoryRequired(mesh_offset, mesh_map_offset,
+                        soln_offset, soln_map_offset,
+                        resid_offset, resid_map_offset);
+  BOOST_CHECK_EQUAL( mesh_map_offset["jacob"], 0);
+  BOOST_CHECK_EQUAL( mesh_map_offset["jacob_inv"],
+                     num_elems*num_cub_points*dim*dim);
+  BOOST_CHECK_EQUAL( mesh_map_offset["jacob_det"],
+                     2*num_elems*num_cub_points*dim*dim);
 }
 
-#if 0
 BOOST_AUTO_TEST_CASE(SetDataView) {
   Evaluator<double,double>* jacob = new MetricJacobian<double,double>();
   int num_elems = 10;
@@ -80,13 +69,17 @@ BOOST_AUTO_TEST_CASE(SetDataView) {
                        num_ref_basis, dim);
   int mesh_offset = num_elems*num_nodes_per_elem*dim;
   int soln_offset = 0;
-  std::map<std::string,int> mesh_field_offset, soln_field_offset;
-  mesh_field_offset["node_coords"] = 0;
-  jacob->MemoryRequired(mesh_offset, soln_offset, mesh_field_offset,
-                        soln_field_offset);
+  int resid_offset = 0;
+  std::map<std::string,int> mesh_map_offset, soln_map_offset, resid_map_offset;
+  mesh_map_offset["node_coords"] = 0;
+  jacob->MemoryRequired(mesh_offset, mesh_map_offset,
+                        soln_offset, soln_map_offset,
+                        resid_offset, resid_map_offset);
   Teuchos::ArrayRCP<double> mesh_data(mesh_offset, 1.0);
   Teuchos::ArrayRCP<double> soln_data(soln_offset, 1.0);
-  jacob->SetDataViews(mesh_data, soln_data, mesh_field_offset, soln_field_offset);
+  Teuchos::ArrayRCP<typename davinci::Evaluator<double,double>::ResidT> resid_data(resid_offset, 1.0);
+  jacob->SetDataViews(mesh_data, mesh_map_offset, soln_data, soln_map_offset,
+                      resid_data, resid_map_offset);
 }
 
 BOOST_AUTO_TEST_CASE(Evaluate) {
@@ -122,13 +115,17 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
                        num_ref_basis, dim);
   int mesh_offset = num_elems*num_nodes_per_elem*dim;
   int soln_offset = 0;
-  std::map<std::string,int> mesh_field_offset, soln_field_offset;
-  mesh_field_offset["node_coords"] = 0;
-  jacob->MemoryRequired(mesh_offset, soln_offset, mesh_field_offset,
-                        soln_field_offset);
+  int resid_offset = 0;
+  std::map<std::string,int> mesh_map_offset, soln_map_offset, resid_map_offset;
+  mesh_map_offset["node_coords"] = 0;
+  jacob->MemoryRequired(mesh_offset, mesh_map_offset,
+                        soln_offset, soln_map_offset,
+                        resid_offset, resid_map_offset);
   Teuchos::ArrayRCP<double> mesh_data(mesh_offset, 1.0);
   Teuchos::ArrayRCP<double> soln_data(soln_offset, 1.0);
-  jacob->SetDataViews(mesh_data, soln_data, mesh_field_offset, soln_field_offset);
+  Teuchos::ArrayRCP<double> resid_data(resid_offset, 1.0);
+  jacob->SetDataViews(mesh_data, mesh_map_offset, soln_data, soln_map_offset,
+                      resid_data, resid_map_offset);
 
   // define node coordinates; the elements do not need to be adjacent
   for (int i = 0; i < num_elems; i++) {
@@ -148,10 +145,9 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
   std::cout << "Jacobian determinant: ";
   for (int i = 0; i < num_elems; i++)
     for (int j = 0; j < num_cub_points; j++)
-      std::cout << mesh_data[mesh_field_offset["jacob_det"]+i*num_cub_points+j]
+      std::cout << mesh_data[mesh_map_offset["jacob_det"]+i*num_cub_points+j]
                 << " ";
   std::cout << "\n";
 }
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()
