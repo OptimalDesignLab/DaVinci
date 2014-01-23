@@ -1,6 +1,6 @@
 /**
  * \file work_set_test.cpp
- * \brief unit test for the WorkSet<ScalarT> class
+ * \brief unit test for the WorkSet<NodeT,ScalarT,MeshT> class
  * \author Jason Hicken <jason.hicken@gmail.com>
  */
 
@@ -12,19 +12,24 @@
 #include "Intrepid_FieldContainer.hpp"
 #include "work_set.hpp"
 #include "simple_mesh.hpp"
+#include "metric_jacobian.hpp"
+#include "laplace.hpp"
 
 using Intrepid::FieldContainer;
 using davinci::WorkSet;
 using davinci::SimpleMesh;
+using davinci::Evaluator;
+using davinci::MetricJacobian;
+using davinci::Laplace;
 
 BOOST_AUTO_TEST_SUITE(WorkSet_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  WorkSet<double,SimpleMesh> MyWorkSet(std::cout);  
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
 }
 
 BOOST_AUTO_TEST_CASE(Topology) {
-  WorkSet<double,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -34,7 +39,7 @@ BOOST_AUTO_TEST_CASE(Topology) {
 }
 
 BOOST_AUTO_TEST_CASE(Cubature) {
-  WorkSet<double,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -44,7 +49,7 @@ BOOST_AUTO_TEST_CASE(Cubature) {
 
 BOOST_AUTO_TEST_CASE(Basis) {
   typedef double ScalarT;
-  WorkSet<ScalarT,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<ScalarT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -55,18 +60,33 @@ BOOST_AUTO_TEST_CASE(Basis) {
   MyWorkSet.DefineBasis(tri_hgrad_basis);
 }
 
+BOOST_AUTO_TEST_CASE(Evaluators) {
+  typedef double ScalarT;
+  typedef double NodeT;
+  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
+  std::list<Evaluator<NodeT,ScalarT>* > evaluators;
+  evaluators.push_back(new MetricJacobian<NodeT,ScalarT>());
+  evaluators.push_back(new Laplace<NodeT,ScalarT>());
+  MyWorkSet.DefineEvaluators(evaluators);
+}
+#if 0
 BOOST_AUTO_TEST_CASE(ResizeSets) {
-  WorkSet<double,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
   int degree = 2;
   MyWorkSet.DefineCubature(degree);
+  std::list<Evaluator<NodeT,ScalarT>* > evaluators;
+  evaluators.push_back(new MetricJacobian<NodeT,ScalarT>());
+  evaluators.push_back(new Laplace<NodeT,ScalarT>());
+  MyWorkSet.DefineEvaluators(evaluators);
   int total_elems = 100;
   for (int nelems = 1; nelems <= 100; nelems++)
     MyWorkSet.ResizeSets(total_elems, nelems);
 }
-
+#endif
+#if 0
 BOOST_AUTO_TEST_CASE(CopyMeshCoords) {
   WorkSet<double,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
@@ -103,5 +123,6 @@ BOOST_AUTO_TEST_CASE(CopyMeshCoords) {
   // std::cout << workset_time.name() << workset_time.totalElapsedTime() << "\n";
   // std::cout << direct_time.name() << direct_time.totalElapsedTime() << "\n";
 }
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

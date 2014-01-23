@@ -90,10 +90,6 @@ void Laplace<NodeT,ScalarT>::Evaluate(
   // compute solution gradient
   solution_grad_->initialize(); // set solution gradient to zero
   FST::evaluate<ResidT>(*solution_grad_, *solution_coeff_, *grads_transformed_);
-  for (int i = 0; i < num_elems_; ++i)
-    for (int j = 0; j < num_cub_points_; ++j)
-      for (int k = 0; k < dim_; k++)
-        std::cout << (*solution_grad_)(i,j,k) << " ";
   // integrate to get residual
   FST::integrate<ResidT>(*residual_, *solution_grad_,
                          *grads_transformed_weighted_,

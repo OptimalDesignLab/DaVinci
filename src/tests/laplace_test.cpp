@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
   int num_elems = 10;
   int dim = 2;
 
-  // define a trianglular-element topology and its cubature
+  // define a triangular-element topology and its cubature
   Teuchos::RCP<const CellTopologyData>
       cell(shards::getCellTopologyData<shards::Triangle<3> >(), false);
   RCP<shards::CellTopology> topology =
@@ -146,7 +146,6 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
                           resid_offset, resid_map_offset);
 
   // allocate memory and set data views
-  std::cout << "memory allocate...\n";
   Teuchos::ArrayRCP<double> mesh_data(mesh_offset, 1.0);
   Teuchos::ArrayRCP<double> soln_data(soln_offset, 1.0);
   Teuchos::ArrayRCP<typename davinci::Evaluator<double,double>::ResidT>
@@ -179,11 +178,27 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
     // node 3
     soln_data[i*num_ref_basis+2] = static_cast<double>(i);
   }
-  std::cout << "jacob evaluate...\n";
   jacob->Evaluate(topology, cub_points, cub_weights, vals, grads);
-  std::cout << "laplace_pde evaluate...\n";
   laplace_pde->Evaluate(topology, cub_points, cub_weights, vals, grads);
-  std::cout << "clean up...\n";
+  // check that gradient is (1,0) at all cubature points
+  for (int i = 0; i < num_elems; ++i)
+    for (int j = 0; j < num_cub_points; ++j) {
+      BOOST_CHECK_CLOSE(resid_data[resid_map_offset.at("solution_grad")
+                                  + (i*num_cub_points + j)*dim], 1.0, 1e-13);
+      BOOST_CHECK_SMALL(resid_data[resid_map_offset.at("solution_grad")
+                                  + (i*num_cub_points + j)*dim + 1], 1e-13);
+    }
+  // check that residual is (-0.5, 0.5, 0.0) on each element; this follows
+  // because the solution is linear, and, when the element residual vectors
+  // are assembled, the residual becomes zero.
+  for (int i = 0; i < num_elems; ++i) {
+    BOOST_CHECK_CLOSE(resid_data[resid_map_offset.at("residual")
+                                 + i*num_ref_basis], -0.5, 1e-13);
+    BOOST_CHECK_CLOSE(resid_data[resid_map_offset.at("residual")
+                                 + i*num_ref_basis + 1], 0.5, 1e-13);
+    BOOST_CHECK_CLOSE(resid_data[resid_map_offset.at("residual")
+                                 + i*num_ref_basis + 2], 0.0, 1e-13);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

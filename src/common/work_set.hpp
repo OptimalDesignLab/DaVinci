@@ -13,6 +13,7 @@
 #include "Shards_CellTopologyData.h"
 #include "Intrepid_FieldContainer.hpp"
 #include "Intrepid_Basis.hpp"
+#include "evaluator.hpp"
 
 namespace davinci {
 
@@ -26,8 +27,8 @@ using Intrepid::Basis;
 /*!
  * \class WorkSet
  * \brief a collection of data and functions for common-type "elements"
- * \tparam NodeT - the scalar type for node-based data (float, double, sacado AD, etc)
- * \tparam ScalarT - the scalar type for sol-based data (float, double, sacado AD, etc)
+ * \tparam NodeT - the scalar type for node-based data (double, sacado AD, etc)
+ * \tparam ScalarT - the scalar type for sol-based data (double, sacado AD, etc)
  * \tparam MeshT - a generic class of mesh
  *
  * A workset is used to evaluate residuals and Jacobians for a set of "elements"
@@ -76,17 +77,20 @@ class WorkSet {
 
   /*!
    * \brief sets the evaluators that define the problem on this workset
-   * \param[in] eval_list - a list of evaluators
+   * \param[in] evaluators - a list of evaluators
    */
-  void DefineEvaluators();
+  void DefineEvaluators(
+      const std::list<Evaluator<NodeT,ScalarT>* >& evaluators);
+  //      const ArrayRCP<Evaluator<NodeT,ScalarT> >& evaluators);
   
   /*!
-   * \brief defines the size of the workset fields
+   * \brief defines the size of the worksets
    * \param[in] total_elems - total number of elements over all sets
    * \param[in] num_elems_per_set - number of elements in each work set
    */
   virtual void ResizeSets(const int& total_elems, const int& num_elems_per_set);
-  
+
+#if 0
   /*!
    * \brief fills the given stiffness matrix and right-hand-side vector
    * \param[in] mesh - mesh object to reference physical node locations
@@ -99,6 +103,7 @@ class WorkSet {
    * \param[in] set_idx - the batch of elements whose nodes we want
    */
   void CopyMeshCoords(const MeshT& mesh, const int& set_idx);
+#endif
   
  protected:
   int dim_; ///< spatial dimension that the fields are embedded in
@@ -113,16 +118,12 @@ class WorkSet {
   RCP<CellTopology> topology_; ///< element topology
   RCP<const Basis<ScalarT, FieldContainer<ScalarT> >
       > basis_; ///< finite element basis on reference element
-  ArrayRCP<Evaluator> evaluators_; ///< graph of the evaluators 
+  //ArrayRCP<Evaluator<NodeT,ScalarT> > evaluators_; ///< graph of the evaluators
+  std::list<Evaluator<NodeT,ScalarT>* > evaluators_; ///< graph of the evaluators 
   FieldContainer<double> cub_points_; ///< cubature point locations
   FieldContainer<double> cub_weights_; ///< cubature weights
   FieldContainer<double> vals_; ///< basis values at cub points on ref element
   FieldContainer<double> grads_; ///< gradient values at cub points ref element
-  //FieldContainer<NodeT> node_coords_; ///< phys. coordinates of element nodes
-  //FieldContainer<ScalarT> jacob_; ///< Jacobian of the reference mapping 
-  //FieldContainer<ScalarT> jacob_inv_; ///< inverse Jacobian of the ref. mapping
-  //FieldContainer<ScalarT> jacob_det_; ///< determinant of the Jacobian
-  //FieldContainer<ScalarT> weighted_measure_; ///< cubature scaled by Jacobian
 };
 
 } // namespace davinci

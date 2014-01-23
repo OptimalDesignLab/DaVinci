@@ -75,16 +75,20 @@ void WorkSet<NodeT,ScalarT,MeshT>::DefineBasis(
 }
 //==============================================================================
 template <typename NodeT, typename ScalarT, typename MeshT>
-void WorkSet<NodeT,ScalarT,MeshT>::DefineEvaluators() {
-  // TEMPORARY
-  eval_list.resize(1, CopyNodes());
-  eval_list.resize(2, MetricJacobian());
-  eval_list.resize(3, Laplace());    
+void WorkSet<NodeT,ScalarT,MeshT>::DefineEvaluators(
+    const std::list<Evaluator<NodeT,ScalarT>* >& evaluators) {
+  //    const ArrayRCP<Evaluator<NodeT,ScalarT> >& evaluators) {
+  //  typename ArrayRCP<Evaluator<NodeT,ScalarT> >::iterator it;
+  evaluators_.clear();
+  typename std::list<Evaluator<NodeT,ScalarT>* >::const_iterator evali;
+  for (evali = evaluators.begin(); evali != evaluators.end(); ++evali) {
+    evaluators_.push_back(*evali);
+  }
 }
 //==============================================================================
 template <typename NodeT, typename ScalarT, typename MeshT>
 void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(const int& total_elems,
-                                        const int& num_elems_per_set) {
+                                              const int& num_elems_per_set) {
   BOOST_ASSERT_MSG(total_elems > 0, "total_elems must be > 0");
   BOOST_ASSERT_MSG(num_elems_per_set > 0 && num_elems_per_set <= total_elems,
                    "num_elems_per_set must be > 0 and < total_elems");
@@ -93,14 +97,14 @@ void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(const int& total_elems,
   std::div_t div_result = std::div(total_elems-1, num_elems_);
   num_sets_ = div_result.quot+1;
   rem_num_elems_ = div_result.rem+1;
-  // allocate arrarys
-  node_coords_.resize(num_elems_, num_nodes_per_elem_, dim_);
-  jacob_.resize(num_elems_, num_cub_points_, dim_, dim_); 
-  jacob_inv_.resize(num_elems_, num_cub_points_, dim_, dim_);
-  jacob_det_.resize(num_elems_, num_cub_points_);
-  weighted_measure_.resize(num_elems_, num_cub_points_);
+  // set the dimensions of the Evaluators
+  typename std::list<Evaluator<NodeT,ScalarT>* >::iterator evali;
+  for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
+    (*evali)->SetDimensions(num_elems_, num_nodes_per_elem_, num_cub_points_,
+                            num_ref_basis_, dim_);
 }
 //==============================================================================
+#if 0
 template <typename NodeT, typename ScalarT, typename MeshT>
 void WorkSet<NodeT,ScalarT,MeshT>::CopyMeshCoords(const MeshT& mesh,
                                             const int& set_idx) {
@@ -122,5 +126,6 @@ void WorkSet<NodeT,ScalarT,MeshT>::BuildSystem(const MeshT& mesh) {
   *out_ << "WorkSet::BuildSystem: must be defined in a derived class\n\n";
   throw(-1);
 }
+#endif
 //==============================================================================
 } // namespace davinci
