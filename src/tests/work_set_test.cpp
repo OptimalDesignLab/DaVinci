@@ -5,16 +5,27 @@
  */
 
 #include <boost/test/unit_test.hpp>
-#include <Teuchos_Time.hpp>
+#include "Teuchos_DefaultComm.hpp"
+#include "Teuchos_GlobalMPISession.hpp"
+#include "Teuchos_oblackholestream.hpp"
+#include "Teuchos_Time.hpp"
 #include "Shards_CellTopology.hpp"
 #include "Shards_CellTopologyData.h"
 #include "Intrepid_HGRAD_HEX_C1_FEM.hpp"
 #include "Intrepid_FieldContainer.hpp"
+#include "Tpetra_DefaultPlatform.hpp"
+#include "Tpetra_CrsMatrix.hpp"
+
 #include "work_set.hpp"
 #include "simple_mesh.hpp"
 #include "metric_jacobian.hpp"
 #include "laplace.hpp"
 
+using Teuchos::GlobalMPISession;
+using Teuchos::RCP;
+using Teuchos::ParameterList;
+using Teuchos::Comm;
+using Teuchos::DefaultComm;
 using Intrepid::FieldContainer;
 using davinci::WorkSet;
 using davinci::SimpleMesh;
@@ -22,14 +33,19 @@ using davinci::Evaluator;
 using davinci::MetricJacobian;
 using davinci::Laplace;
 
+typedef Tpetra::Vector<double,int,int> Vector;
+typedef Tpetra::CrsMatrix<double,int,int> Matrix;
+typedef Tpetra::Map<int,int> Map;
+//typedef Tpetra::BlockMap<int,int> BlockMap;
+
 BOOST_AUTO_TEST_SUITE(WorkSet_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
 }
 
 BOOST_AUTO_TEST_CASE(Topology) {
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -39,7 +55,7 @@ BOOST_AUTO_TEST_CASE(Topology) {
 }
 
 BOOST_AUTO_TEST_CASE(Cubature) {
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -49,7 +65,7 @@ BOOST_AUTO_TEST_CASE(Cubature) {
 
 BOOST_AUTO_TEST_CASE(Basis) {
   typedef double ScalarT;
-  WorkSet<ScalarT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<ScalarT,ScalarT,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -63,29 +79,91 @@ BOOST_AUTO_TEST_CASE(Basis) {
 BOOST_AUTO_TEST_CASE(Evaluators) {
   typedef double ScalarT;
   typedef double NodeT;
-  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<NodeT,ScalarT,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
   std::list<Evaluator<NodeT,ScalarT>* > evaluators;
   evaluators.push_back(new MetricJacobian<NodeT,ScalarT>());
   evaluators.push_back(new Laplace<NodeT,ScalarT>());
   MyWorkSet.DefineEvaluators(evaluators);
 }
-#if 0
-BOOST_AUTO_TEST_CASE(ResizeSets) {
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
+
+BOOST_AUTO_TEST_CASE(ResizeSets) {  
+  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
   int degree = 2;
   MyWorkSet.DefineCubature(degree);
-  std::list<Evaluator<NodeT,ScalarT>* > evaluators;
-  evaluators.push_back(new MetricJacobian<NodeT,ScalarT>());
-  evaluators.push_back(new Laplace<NodeT,ScalarT>());
+  Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double>
+                                   > tri_hgrad_basis;
+  MyWorkSet.DefineBasis(tri_hgrad_basis);  
+  std::list<Evaluator<double,double>* > evaluators;
+  evaluators.push_back(new MetricJacobian<double,double>());
+  evaluators.push_back(new Laplace<double,double>());
   MyWorkSet.DefineEvaluators(evaluators);
+  int num_pdes = 1;
   int total_elems = 100;
-  for (int nelems = 1; nelems <= 100; nelems++)
-    MyWorkSet.ResizeSets(total_elems, nelems);
+  for (int nelems = 1; nelems <= total_elems; nelems++)
+    MyWorkSet.ResizeSets(num_pdes, total_elems, nelems);
 }
+
+BOOST_AUTO_TEST_CASE(BuildSystem) {
+  // create Teuchos communicator
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  //DefaultComm<int>::getComm();
+
+  // stream for output
+  const int myRank = comm->getRank();
+  const int numProcs = comm->getSize();
+  Teuchos::oblackholestream blackHole;
+  std::ostream& out = (comm->getRank() == 0) ? std::cout : blackHole;
+  
+  // Define a rectangular mesh  
+  SimpleMesh Mesh(out);
+  double Lx = 1.0, Ly = 1.0;
+  int Nx = 10, Ny = 10;
+  Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
+
+  // Create a Workset for the Laplace PDE
+  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(out);
+  Teuchos::RCP<const CellTopologyData> cell(
+      shards::getCellTopologyData<shards::Triangle<3> >(), false);
+  MyWorkSet.DefineTopology(cell);
+  int degree = 2;
+  MyWorkSet.DefineCubature(degree);
+  Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double>
+                                   > tri_hgrad_basis;
+  MyWorkSet.DefineBasis(tri_hgrad_basis);
+  std::list<Evaluator<double,double>* > evaluators;
+  evaluators.push_back(new MetricJacobian<double,double>());
+  evaluators.push_back(new Laplace<double,double>());
+  MyWorkSet.DefineEvaluators(evaluators);
+  int num_pdes = 1;
+  int total_elems = Mesh.get_num_elems();
+  int nelems = 10;
+  MyWorkSet.ResizeSets(num_pdes, total_elems, nelems);
+  
+  // create Tpetra map and linear algebra objects
+  const int index_base = 0; // where indexing starts, i.e. c-style
+  const size_t num_rows = Mesh.get_num_nodes();
+  const Tpetra::global_size_t num_global_rows = num_rows*comm->getSize();
+  const int num_local = num_global_rows; // serial for now
+  RCP<const Map> map =
+      Tpetra::createContigMap<int,int>(num_global_rows, num_local, comm);
+#if 0
+  RCP<const BlockMap> block_map = new
+      Tpetra::BlockMap(num_global_rows, 1, 0, comm);
 #endif
+  RCP<Vector> sol = Tpetra::createVector<double>(map);
+  sol->putScalar(1.0);
+  RCP<Vector> rhs = Tpetra::createVector<double>(map);
+  RCP<Matrix> jacobian = Tpetra::createCrsMatrix<double,int,int>(map);
+  MyWorkSet.BuildSystem(Mesh, sol, rhs, jacobian);
+}
+
 #if 0
 BOOST_AUTO_TEST_CASE(CopyMeshCoords) {
   WorkSet<double,SimpleMesh> MyWorkSet(std::cout);

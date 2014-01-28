@@ -87,7 +87,7 @@ void SimpleMesh::BuildRectangularMesh(const double& Lx, const double& Ly,
   }
 }
 //==============================================================================
-void SimpleMesh::CopyElemNodeCoords(FieldContainer<double>& coords,
+void SimpleMesh::CopyElemNodeCoords(ArrayRCP<double>& node_coords,
                                     const int& set_idx,
                                     const int& num_elems_per_set,
                                     const int& num_sets) const {
@@ -102,7 +102,8 @@ void SimpleMesh::CopyElemNodeCoords(FieldContainer<double>& coords,
     int k = set_idx*num_elems_per_set + ielem;
     for (int i = 0; i < num_nodes_per_elem; i++)
       for (int j = 0; j < dim_; j++)
-        coords(ielem, i, j) = node_coord_(elem_to_node_(ielem, i), j);
+        node_coords[(ielem*num_nodes_per_elem+i)*dim_ + j]
+            = node_coord_(elem_to_node_(k, i), j);
   }
 }
 //==============================================================================

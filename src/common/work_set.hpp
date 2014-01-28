@@ -30,6 +30,8 @@ using Intrepid::Basis;
  * \tparam NodeT - the scalar type for node-based data (double, sacado AD, etc)
  * \tparam ScalarT - the scalar type for sol-based data (double, sacado AD, etc)
  * \tparam MeshT - a generic class of mesh
+ * \tparam VectorT - generic distributed vector type (Epetra or Tpetra)
+ * \tparam MatrixT - generic distributed sparse matrix type (Epetra or Tpetra)
  *
  * A workset is used to evaluate residuals and Jacobians for a set of "elements"
  * with identical topology.
@@ -43,9 +45,17 @@ using Intrepid::Basis;
  * the information provided by these be stripped out, similar to the cubature?
  * At least one of these seems redundant.
  */
-template <typename NodeT, typename ScalarT, typename MeshT>
+template <typename NodeT, typename ScalarT, typename MeshT, typename VectorT,
+          typename MatrixT>
 class WorkSet {
  public:
+  
+  /*!
+   * \typedef ResidT
+   * \brief type used for fields dependent on both NodeT and ScalarT
+   */
+  typedef typename davinci::Evaluator<NodeT,ScalarT>::ResidT ResidT;
+  
   typedef ScalarT RealT;
   
   /*!
@@ -85,18 +95,51 @@ class WorkSet {
   
   /*!
    * \brief defines the size of the worksets
+   * \param[in] num_pdes - number of PDEs = number of unknowns per DoF
    * \param[in] total_elems - total number of elements over all sets
    * \param[in] num_elems_per_set - number of elements in each work set
    */
-  virtual void ResizeSets(const int& total_elems, const int& num_elems_per_set);
+  void ResizeSets(const int& num_pdes, const int& total_elems,
+                  const int& num_elems_per_set);
 
-#if 0
+
+  /*!
+   * \brief copies the solution from a linear algebra object into soln_data_
+   * \param[in] set_idx - index of the desired workset batch
+   * \param[in] mesh - mesh object to reference node indices
+   * \param[in] sol - current solution vector
+   *
+   * \warning This is not general enough in its current form.  It assumes that
+   * the basis functions are 1-to-1 with the mesh nodes (and have the same local
+   * index)
+   */
+  void CopySolution(const int& set_idx, const MeshT& mesh,
+                    const ArrayRCP<const double>& sol);
+
+  /*!
+   * \brief uses resid_data_ to fill in the linear-system objects
+   * \param[in,out] rhs - the right-hand-side vector (view of a Tpetra vector)
+   * \param[in,out] jacobian - the system matrix (view of a Tpetra matrix)
+   * \param[in] mesh - a mesh object to reference node indices
+   *
+   * \warning This is not general enough in its current form.  It assumes that
+   * the basis functions are 1-to-1 with the mesh nodes (and have the same local
+   * index)
+   */
+  void Assemble(const ArrayRCP<double>& rhs, const RCP<MatrixT>& jacobian,
+                const MeshT& mesh);
+  
   /*!
    * \brief fills the given stiffness matrix and right-hand-side vector
    * \param[in] mesh - mesh object to reference physical node locations
+   * \param[in] sol - current solution vector (for nonlinear problems)
+   * \param[out] rhs - the system right-hand-side vector
+   * \param[out] jacobian - the system jacobian/stiffness matrix
    */
-  virtual void BuildSystem(const MeshT& mesh);
-
+  void BuildSystem(const MeshT& mesh, const RCP<const VectorT>& sol,
+                   const RCP<VectorT>& rhs, const RCP<MatrixT>& jacobian);
+  
+#if 0
   /*!
    * \brief copies the physical node coordinates from a mesh into the workset
    * \param[in] mesh - mesh object to reference physical node locations
@@ -107,6 +150,7 @@ class WorkSet {
   
  protected:
   int dim_; ///< spatial dimension that the fields are embedded in
+  int num_pdes_; ///< number of unknowns per degree of freedom = # of PDEs
   int num_nodes_per_elem_; ///< number of nodes defining the elements
   int num_sets_; ///< number of work sets
   int num_elems_; ///< number of elements (volume, face, or line) per set
@@ -124,6 +168,13 @@ class WorkSet {
   FieldContainer<double> cub_weights_; ///< cubature weights
   FieldContainer<double> vals_; ///< basis values at cub points on ref element
   FieldContainer<double> grads_; ///< gradient values at cub points ref element
+  
+  std::map<std::string,int> mesh_map_offset_; ///< map to mesh field data offset
+  std::map<std::string,int> soln_map_offset_; ///< map to soln field data offset
+  std::map<std::string,int> resid_map_offset_; ///< map to residual data offset
+  ArrayRCP<NodeT> mesh_data_; ///< continuous array for node-based data
+  ArrayRCP<ScalarT> soln_data_; ///< continuous array for solution data
+  ArrayRCP<ResidT> resid_data_; ///< continuous array for output data
 };
 
 } // namespace davinci

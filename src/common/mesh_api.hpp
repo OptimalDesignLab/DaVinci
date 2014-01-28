@@ -8,11 +8,13 @@
 #define DAVINCI_SRC_COMMON_MESH_API_HPP
 
 #include "Teuchos_ParameterList.hpp"
+#include "Teuchos_ArrayRCPDecl.hpp"
 #include "Intrepid_FieldContainer.hpp"
 
 namespace davinci {
 
 using Teuchos::ParameterList;
+using Teuchos::ArrayRCP;
 using Intrepid::FieldContainer;
 
 /*!
@@ -67,10 +69,11 @@ class MeshAPI {
    * \param[in] num_elems_per_set - the number of elements in each (typical) set
    * \param[in] num_sets - the total number of sets
    *
-   * The FieldContainer is specialized to a double type, because most (if not
-   * all) mesh libraries will use double.
+   * Since most, if not all, Meshing libraries use double-type for the node
+   * coordinates, this member function may need to be specialized to handle AD
+   * types.
    */
-  virtual void CopyElemNodeCoords(FieldContainer<double>& coords,
+  virtual void CopyElemNodeCoords(ArrayRCP<double>& coords,
                                   const int& set_idx,
                                   const ElemIntT& num_elems_per_set,
                                   const int& num_sets) const = 0;

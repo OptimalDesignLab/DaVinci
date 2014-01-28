@@ -40,18 +40,30 @@ BOOST_AUTO_TEST_CASE(ElemToNode) {
 BOOST_AUTO_TEST_CASE(CopyElemNodeCoords) {
   SimpleMesh Mesh(std::cout);
   double Lx = 1.0, Ly = 1.0;
-  int Nx = 1000, Ny = 1000;
+  int Nx = 2, Ny = 2;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
-  int batch_size = 9;
+  int batch_size = 2;
   std::div_t div_result = std::div(Mesh.get_num_elems()-1, batch_size);
   int num_batch = div_result.quot+1;
   std::cout << "batch_size = " << batch_size << "\n";
   std::cout << "num_batch = " << num_batch << "\n";
   std::cout << "remainder = " << div_result.rem+1 << "\n";
   int num_nodes_per_elem = 3;
-  Intrepid::FieldContainer<double> coords(batch_size, num_nodes_per_elem, 2);
-  for (int bi = 0; bi < num_batch; bi++)
-    Mesh.CopyElemNodeCoords(coords, bi, batch_size, num_batch); 
+  int dim = 2;
+  Teuchos::ArrayRCP<double> node_coords(batch_size*num_nodes_per_elem*2);
+  for (int bi = 0; bi < num_batch; bi++) {
+    Mesh.CopyElemNodeCoords(node_coords, bi, batch_size, num_batch);
+    int set_num_elems = batch_size;
+    if (bi == num_batch-1)
+      set_num_elems = num_batch - (bi*batch_size);
+    for (int ielem = 0; ielem < set_num_elems; ielem++) {
+      int k = bi*batch_size + ielem;
+      for (int i = 0; i < num_nodes_per_elem; i++)
+        for (int j = 0; j < dim; j++)
+          BOOST_CHECK_CLOSE(node_coords[(ielem*num_nodes_per_elem+i)*dim + j],
+                            Mesh.ElemNodeCoord(k, i, j), 1e-13);
+    }
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

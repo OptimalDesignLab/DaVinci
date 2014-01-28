@@ -9,6 +9,7 @@
 
 #include <ostream>
 #include "Teuchos_RCP.hpp"
+#include "Teuchos_ArrayRCPDecl.hpp"
 #include "Teuchos_ParameterList.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "mesh_api.hpp"
@@ -17,6 +18,7 @@ namespace davinci {
 
 using std::ostream;
 using Teuchos::RCP;
+using Teuchos::ArrayRCP;
 using Teuchos::ParameterList;
 using Intrepid::FieldContainer;
 
@@ -92,7 +94,7 @@ class SimpleMesh : public MeshAPI<int,int> {
    * \param[in] num_elems_per_set - the number of elements in each (typical) set
    * \param[in] num_sets - the total number of sets
    */
-  void CopyElemNodeCoords(FieldContainer<double>& coords, const int& set_idx,
+  void CopyElemNodeCoords(ArrayRCP<double>& coords, const int& set_idx,
                           const int& num_elems_per_set,
                           const int& num_sets) const;
   

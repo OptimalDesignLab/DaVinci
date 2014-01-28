@@ -27,10 +27,14 @@ using Intrepid::FieldContainer;
  */
 template <typename NodeT, typename ScalarT>
 class MetricJacobian : public Evaluator<NodeT,ScalarT> {
- private:
-  typedef typename Evaluator<NodeT,ScalarT>::ResidT ResidT;
  public:
 
+  /*!
+   * \typedef ResidT
+   * \brief type used for fields dependent on both NodeT and ScalarT
+   */
+  typedef typename Evaluator<NodeT,ScalarT>::ResidT ResidT;
+  
   /*!
    * \brief default constructor that defines the output and input dependencies
    */

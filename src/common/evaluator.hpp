@@ -49,8 +49,7 @@ using shards::CellTopology;
  */
 template <typename NodeT, typename ScalarT>
 class Evaluator {
-
- protected:
+ public:
   /*!
    * \typedef ResidT
    * \brief type used for fields dependent on both NodeT and ScalarT
@@ -64,8 +63,6 @@ class Evaluator {
    */
   typedef typename boost::mpl::if_c< (sizeof(NodeT) <= sizeof(ScalarT)),
     ScalarT, NodeT>::type ResidT;
-  
- public:
 
   /*!
    * \brief default constructor that defines the output and input dependencies
@@ -142,7 +139,7 @@ class Evaluator {
 };
 
 /*!
- * \brief creates a multi-dimensional array view of 1-d arrary data
+ * \brief creates a multi-dimensional array view of 1-d array data
  * \relates Evaluator
  * \tparam T - type of data stored in the array
  * \tparam N - number of dimensions
