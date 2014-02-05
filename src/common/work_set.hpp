@@ -106,15 +106,13 @@ class WorkSet {
   /*!
    * \brief copies the solution from a linear algebra object into soln_data_
    * \param[in] set_idx - index of the desired workset batch
-   * \param[in] mesh - mesh object to reference node indices
    * \param[in] sol - current solution vector
    *
    * \warning This is not general enough in its current form.  It assumes that
    * the basis functions are 1-to-1 with the mesh nodes (and have the same local
    * index)
    */
-  void CopySolution(const int& set_idx, const MeshT& mesh,
-                    const ArrayRCP<const double>& sol);
+  void CopySolution(const int& set_idx, const ArrayRCP<const double>& sol);
 
   /*!
    * \brief uses resid_data_ to fill in the linear-system objects
@@ -175,6 +173,8 @@ class WorkSet {
   ArrayRCP<NodeT> mesh_data_; ///< continuous array for node-based data
   ArrayRCP<ScalarT> soln_data_; ///< continuous array for solution data
   ArrayRCP<ResidT> resid_data_; ///< continuous array for output data
+  ArrayRCP<typename
+           MeshT::LocIdxT> index_data_; ///< continuous array for node indices
 };
 
 } // namespace davinci

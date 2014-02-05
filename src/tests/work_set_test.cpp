@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   std::ostream& out = (comm->getRank() == 0) ? std::cout : blackHole;
   
   // Define a rectangular mesh  
-  SimpleMesh Mesh(out);
+  SimpleMesh Mesh(out, comm);
   double Lx = 1.0, Ly = 1.0;
   int Nx = 10, Ny = 10;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);

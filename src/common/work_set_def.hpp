@@ -125,6 +125,7 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::ResizeSets(
   int mesh_memory = num_elems_*num_nodes_per_elem*dim_; // for nodes
   int soln_memory = num_elems_*num_ref_basis_*num_pdes_; // for solution coeffs
   int resid_memory = 0;
+  int index_memory = num_elems_*num_ref_basis_*num_pdes_; // for dof indices
   mesh_map_offset_["node_coords"] = 0;
   soln_map_offset_["solution_coeff"] = 0;
   for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
@@ -135,6 +136,7 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::ResizeSets(
   mesh_data_.resize(mesh_memory, 0.0);
   soln_data_.resize(soln_memory, 0.0);
   resid_data_.resize(resid_memory, 0.0);
+  index_data_.resize(index_memory, 0.0);
   // define Data Views for Evaluators; is this the best place for this?
   for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
     (*evali)->SetDataViews(mesh_data_, mesh_map_offset_,
@@ -145,7 +147,7 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::ResizeSets(
 template <typename NodeT, typename ScalarT, typename MeshT, typename VectorT,
           typename MatrixT>
 void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::CopySolution(
-    const int& set_idx, const MeshT& mesh, const ArrayRCP<const double>& sol) {
+    const int& set_idx, const ArrayRCP<const double>& sol) {
   BOOST_ASSERT_MSG(num_ref_basis_ == static_cast<int>(topology_->getNodeCount()),
                      "presently, the basis size must equal the number of nodes");
 #ifdef DAVINCI_VERBOSE
@@ -154,14 +156,8 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::CopySolution(
   // copy the solution into the workset array
   int set_num_elems = num_elems_;
   if (set_idx == num_sets_-1) set_num_elems = rem_num_elems_;
-  int num_nodes_per_elem = topology_->getNodeCount();
-  for (int ielem = 0; ielem < set_num_elems; ielem++) {
-    int k = set_idx*num_elems_ + ielem; // index of element on local process
-    for (int i = 0; i < num_ref_basis_; i++)
-      for (int j = 0; j < num_pdes_; j++)
-        soln_data_[(ielem*num_ref_basis_+i)*num_pdes_ + j]
-            = sol[mesh.ElemToNode(k,i)*num_pdes_+j];
-  }
+  for (int i = 0; i < set_num_elems*num_ref_basis_*num_pdes_; ++i)
+    soln_data_[i] = sol[index_data_[i]];
 }
 //==============================================================================
 template <typename NodeT, typename ScalarT, typename MeshT, typename VectorT,
@@ -209,9 +205,11 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::BuildSystem(
   int set_num_elems = num_elems_;
   typename std::list<Evaluator<NodeT,ScalarT>* >::iterator evali;  
   for (int set = 0; set < num_sets_; set++) {
-    // store the solution and mesh node coordinates in the appropriate arrays
+    // store mesh node coords, dof indices, and solution in the appropriate
+    // arrays
     mesh.CopyElemNodeCoords(mesh_data_, set, num_elems_, num_sets_);
-    CopySolution(set, mesh, sol_view); // an evaluator? a mesh member?
+    mesh.CopyElemDOFIndices(index_data_, set, num_elems_, num_sets_, num_pdes_);
+    CopySolution(set, sol_view);
     // evaluate the necessary fields
     for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
       (*evali)->Evaluate(topology_, cub_points_, cub_weights_, vals_, grads_);

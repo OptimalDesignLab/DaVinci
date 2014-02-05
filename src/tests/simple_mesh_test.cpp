@@ -5,20 +5,40 @@
  */
 
 #include <boost/test/unit_test.hpp>
-#include <Teuchos_Time.hpp>
+#include "Teuchos_DefaultComm.hpp"
+#include "Teuchos_GlobalMPISession.hpp"
+#include "Teuchos_Time.hpp"
 #include "Intrepid_FieldContainer.hpp"
+#include "Tpetra_DefaultPlatform.hpp"
+#include "Tpetra_CrsMatrix.hpp"
+
 #include "simple_mesh.hpp"
 
+using Teuchos::GlobalMPISession;
+using Teuchos::RCP;
+using Teuchos::ParameterList;
+using Teuchos::Comm;
+using Teuchos::DefaultComm;
 using davinci::SimpleMesh;
 
 BOOST_AUTO_TEST_SUITE(SimpleMesh_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  SimpleMesh Mesh(std::cout);
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();  
+  SimpleMesh Mesh(std::cout, comm);
 }
 
 BOOST_AUTO_TEST_CASE(BuildRectangularMesh) {
-  SimpleMesh Mesh(std::cout);
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  SimpleMesh Mesh(std::cout, comm);
   double Lx = 1.0, Ly = 1.0;
   int Nx = 10, Ny = 10;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
@@ -27,8 +47,47 @@ BOOST_AUTO_TEST_CASE(BuildRectangularMesh) {
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
 }
 
+BOOST_AUTO_TEST_CASE(BuildTpetraMap) {
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  SimpleMesh Mesh(std::cout, comm);
+  double Lx = 1.0, Ly = 1.0;
+  int Nx = 10, Ny = 10;
+  Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
+  RCP<const Tpetra::Map<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
+  Mesh.BuildTpetraMap(map);
+}
+
+BOOST_AUTO_TEST_CASE(BuildMatrixGraph) {
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  SimpleMesh Mesh(std::cout, comm);
+  double Lx = 1.0, Ly = 1.0;
+  int Nx = 2, Ny = 2;
+  Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
+  RCP<const Tpetra::Map<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
+  Mesh.BuildTpetraMap(map);
+  
+  RCP<Tpetra::CrsGraph<int,int> > jac_graph =
+      Tpetra::createCrsGraph<int,int>(map);
+  Mesh.BuildMatrixGraph(map, jac_graph);
+  BOOST_CHECK_EQUAL( jac_graph->getGlobalNumEntries(), 41);
+}
+
+
 BOOST_AUTO_TEST_CASE(ElemToNode) {
-  SimpleMesh Mesh(std::cout);
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  SimpleMesh Mesh(std::cout, comm);
   double Lx = 1.0, Ly = 1.0;
   int Nx = 10, Ny = 10;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
@@ -38,7 +97,12 @@ BOOST_AUTO_TEST_CASE(ElemToNode) {
 }
 
 BOOST_AUTO_TEST_CASE(CopyElemNodeCoords) {
-  SimpleMesh Mesh(std::cout);
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  SimpleMesh Mesh(std::cout, comm);
   double Lx = 1.0, Ly = 1.0;
   int Nx = 2, Ny = 2;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
@@ -62,6 +126,39 @@ BOOST_AUTO_TEST_CASE(CopyElemNodeCoords) {
         for (int j = 0; j < dim; j++)
           BOOST_CHECK_CLOSE(node_coords[(ielem*num_nodes_per_elem+i)*dim + j],
                             Mesh.ElemNodeCoord(k, i, j), 1e-13);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(CopyElemDOFIndices) {
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  SimpleMesh Mesh(std::cout, comm);
+  double Lx = 1.0, Ly = 1.0;
+  int Nx = 2, Ny = 2;
+  Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
+  int batch_size = 2;
+  std::div_t div_result = std::div(Mesh.get_num_elems()-1, batch_size);
+  int num_batch = div_result.quot+1;
+  int num_nodes_per_elem = 3;
+  int num_pdes = 3;
+  Teuchos::ArrayRCP<SimpleMesh::LocIdxT>
+      dof_indices(batch_size*num_nodes_per_elem*num_pdes);
+  for (int bi = 0; bi < num_batch; bi++) {
+    Mesh.CopyElemDOFIndices(dof_indices, bi, batch_size, num_batch, num_pdes);
+    int set_num_elems = batch_size;
+    if (bi == num_batch-1)
+      set_num_elems = num_batch - (bi*batch_size);
+    for (int ielem = 0; ielem < set_num_elems; ielem++) {
+      int k = bi*batch_size + ielem;
+      for (int i = 0; i < num_nodes_per_elem; i++)
+        for (int j = 0; j < num_pdes; j++)
+          BOOST_CHECK_EQUAL(dof_indices[(ielem*num_nodes_per_elem+i)*num_pdes
+                                        + j],
+                            num_pdes*Mesh.ElemToNode(k, i) + j);
     }
   }
 }

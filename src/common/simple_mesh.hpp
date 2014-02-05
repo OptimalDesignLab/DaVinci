@@ -11,12 +11,14 @@
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_ArrayRCPDecl.hpp"
 #include "Teuchos_ParameterList.hpp"
+#include "Teuchos_Comm.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "mesh_api.hpp"
 
 namespace davinci {
 
 using std::ostream;
+using Teuchos::Comm;
 using Teuchos::RCP;
 using Teuchos::ArrayRCP;
 using Teuchos::ParameterList;
@@ -35,8 +37,9 @@ class SimpleMesh : public MeshAPI<int,int> {
   /*!
    * \brief default constructor
    * \param[in] out - a valid output stream
+   * \param[in] comm - an abstract parallel communicator
    */
-  SimpleMesh(ostream& out);
+  SimpleMesh(ostream& out, const RCP<const Comm<int> >& comm);
 
   /*!
    * \brief default destructor
@@ -58,7 +61,7 @@ class SimpleMesh : public MeshAPI<int,int> {
    * \param[in] p - a list of options needed to initialize the desired mesh
    */
   void Initialize(ParameterList& p);
-  
+
   /*!
    * \brief creates a mesh consisting of triangles for the domain [0,Lx] X [0,Ly]
    * \param[in] Lx - length of the domain in the x-direction
@@ -69,6 +72,21 @@ class SimpleMesh : public MeshAPI<int,int> {
   void BuildRectangularMesh(const double& Lx, const double& Ly, const int & Nx,
                             const int & Ny);
 
+  /*
+   * \brief create map that indicates range of local DOF
+   * \param[in] map - Tpetra map
+   */
+  void BuildTpetraMap(RCP<const Map<LocIdxT,GlbIdxT> >& map) const;
+  
+  /*!
+   * \brief create the graph correpsonding to the Jacobian matrix
+   * \param[in] map - Tpetra map
+   * \param[out] jac_graph - graph for the Jacobian matrix
+   */
+  void BuildMatrixGraph(
+      const RCP<const Map<LocIdxT,GlbIdxT> >& map,
+      RCP<CrsGraph<LocIdxT,GlbIdxT> >& jac_graph) const;
+  
   /*!
    * \brief Maps a reference node index in a given element to its global index
    * \param[in] elem - element/cell index
@@ -97,12 +115,30 @@ class SimpleMesh : public MeshAPI<int,int> {
   void CopyElemNodeCoords(ArrayRCP<double>& coords, const int& set_idx,
                           const int& num_elems_per_set,
                           const int& num_sets) const;
+
+  /*
+   * \brief returns the indices for the unknowns on each element
+   * \param[out] dof_index - array of unknown variables' indices
+   * \param[in] set_idx - the workset index we want the coordinates from
+   * \param[in] num_elems_per_set - the number of elements in each (typical) set
+   * \param[in] num_sets - the total number of sets
+   * \param[in] num_pdes - number of equations
+   *
+   * \warning Presently, this expects the mesh vertices to be the only nodal
+   * degrees of freedom, so no high order solutions at this time.
+   */
+  void CopyElemDOFIndices(ArrayRCP<LocIdxT>& dof_index, const int& set_idx,
+                          const int& num_elems_per_set, const int& num_sets,
+                          const int& num_pdes) const;
   
- private:  
+ private:
   int dim_; ///< spatial dimension
   int num_nodes_; ///< number of nodes
   int num_elems_; ///< number of elements
   RCP<ostream> out_; ///< output stream
+  RCP<const Comm<int> > comm_; ///< interface for dist. memory communication
+  FieldContainer<int> index_; ///< local node indices
+  FieldContainer<int> global_index_; ///< global node indices
   FieldContainer<double> node_coord_; ///< (x,y) coordinates of nodes
   FieldContainer<int> node_type_; ///< is node on Bnd (1) or not (0)
   FieldContainer<int> elem_to_node_; ///< maps elem ref nodes to global nodes
