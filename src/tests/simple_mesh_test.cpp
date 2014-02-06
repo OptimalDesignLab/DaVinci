@@ -10,6 +10,7 @@
 #include "Teuchos_Time.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "Tpetra_DefaultPlatform.hpp"
+#include "Tpetra_BlockMap.hpp"
 #include "Tpetra_CrsMatrix.hpp"
 
 #include "simple_mesh.hpp"
@@ -57,8 +58,9 @@ BOOST_AUTO_TEST_CASE(BuildTpetraMap) {
   double Lx = 1.0, Ly = 1.0;
   int Nx = 10, Ny = 10;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
-  RCP<const Tpetra::Map<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
-  Mesh.BuildTpetraMap(map);
+  RCP<const Tpetra::BlockMap<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
+  const int num_pdes = 5;
+  Mesh.BuildTpetraMap(num_pdes, map);
 }
 
 BOOST_AUTO_TEST_CASE(BuildMatrixGraph) {
@@ -71,15 +73,14 @@ BOOST_AUTO_TEST_CASE(BuildMatrixGraph) {
   double Lx = 1.0, Ly = 1.0;
   int Nx = 2, Ny = 2;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
-  RCP<const Tpetra::Map<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
-  Mesh.BuildTpetraMap(map);
+  RCP<const Tpetra::BlockMap<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
+  const int num_pdes = 5;
+  Mesh.BuildTpetraMap(num_pdes, map);
   
-  RCP<Tpetra::CrsGraph<int,int> > jac_graph =
-      Tpetra::createCrsGraph<int,int>(map);
+  RCP<Tpetra::BlockCrsGraph<int,int> > jac_graph;
   Mesh.BuildMatrixGraph(map, jac_graph);
-  BOOST_CHECK_EQUAL( jac_graph->getGlobalNumEntries(), 41);
+  BOOST_CHECK_EQUAL(jac_graph->getNodeNumBlockEntries(), 41);
 }
-
 
 BOOST_AUTO_TEST_CASE(ElemToNode) {
   GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
@@ -148,17 +149,15 @@ BOOST_AUTO_TEST_CASE(CopyElemDOFIndices) {
   Teuchos::ArrayRCP<SimpleMesh::LocIdxT>
       dof_indices(batch_size*num_nodes_per_elem*num_pdes);
   for (int bi = 0; bi < num_batch; bi++) {
-    Mesh.CopyElemDOFIndices(dof_indices, bi, batch_size, num_batch, num_pdes);
+    Mesh.CopyElemDOFIndices(dof_indices, bi, batch_size, num_batch);
     int set_num_elems = batch_size;
     if (bi == num_batch-1)
       set_num_elems = num_batch - (bi*batch_size);
     for (int ielem = 0; ielem < set_num_elems; ielem++) {
       int k = bi*batch_size + ielem;
       for (int i = 0; i < num_nodes_per_elem; i++)
-        for (int j = 0; j < num_pdes; j++)
-          BOOST_CHECK_EQUAL(dof_indices[(ielem*num_nodes_per_elem+i)*num_pdes
-                                        + j],
-                            num_pdes*Mesh.ElemToNode(k, i) + j);
+        BOOST_CHECK_EQUAL(dof_indices[ielem*num_nodes_per_elem+i],
+                          Mesh.ElemToNode(k,i));
     }
   }
 }

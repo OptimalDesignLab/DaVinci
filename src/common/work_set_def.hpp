@@ -5,11 +5,15 @@
  */
 
 #include <boost/assert.hpp>
+#include "Teuchos_SerialDenseVector.hpp"
+#include "Teuchos_SerialDenseMatrix.hpp"
 #include "Intrepid_DefaultCubatureFactory.hpp"
 #include "Intrepid_FunctionSpaceTools.hpp"
 #include "Shards_CellTopology.hpp"
 #include "Shards_CellTopologyData.h"
 #include "work_set.hpp"
+#include "Sacado_Fad_SFad.hpp"
+#include "Sacado_Fad_DFad.hpp"
 
 namespace davinci {
 //==============================================================================
@@ -48,8 +52,8 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::DefineCubature(
   // Get numerical integration points and weights for the defined topology
   using Intrepid::DefaultCubatureFactory;
   using Intrepid::Cubature;
-  DefaultCubatureFactory<ScalarT> cubFactory;
-  Teuchos::RCP<Cubature<ScalarT> >
+  DefaultCubatureFactory<double> cubFactory;
+  Teuchos::RCP<Cubature<double> >
       cub = cubFactory.create(*topology_, degree);
   cub_dim_ = cub->getDimension();
   num_cub_points_ = cub->getNumPoints();
@@ -67,7 +71,7 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::DefineCubature(
 template <typename NodeT, typename ScalarT, typename MeshT, typename VectorT,
           typename MatrixT>
 void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::DefineBasis(
-    const Basis<ScalarT, FieldContainer<ScalarT> >& basis) {
+    const Basis<double, FieldContainer<double> >& basis) {
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::DefineBasis: evaluating basis on reference element\n";
 #endif
@@ -156,18 +160,74 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::CopySolution(
   // copy the solution into the workset array
   int set_num_elems = num_elems_;
   if (set_idx == num_sets_-1) set_num_elems = rem_num_elems_;
-  for (int i = 0; i < set_num_elems*num_ref_basis_*num_pdes_; ++i)
-    soln_data_[i] = sol[index_data_[i]];
+  int num_AD_dep_vars = num_ref_basis_*num_pdes_;
+  for (int ielem = 0; ielem < set_num_elems; ++ielem)
+    for (int i = 0; i < num_ref_basis_; ++i)
+      for (int j = 0; j < num_pdes_; ++j) {
+        // The constructor below makes an automatic differentiation type with
+        // num_ref_basis_*num_pdes_ dependent variables, initialized to zeros
+        // everywhere except along the diagonal (given here by second parameter)
+        // where the value is the solution vector value
+        soln_data_[(ielem*num_ref_basis_+i)*num_pdes_+j]
+            = Sacado::Fad::DFad<double>(
+                num_AD_dep_vars, i*num_pdes_ + j,
+                sol[num_pdes_*index_data_[i]+j]);
+      }
 }
 //==============================================================================
 template <typename NodeT, typename ScalarT, typename MeshT, typename VectorT,
           typename MatrixT>
 void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::Assemble(
-    const ArrayRCP<double>& rhs, const RCP<MatrixT>& jacobian,
-    const MeshT& mesh) {
+    const int& set_idx, const ArrayRCP<double>& rhs,
+    const RCP<MatrixT>& jacobian) {
   BOOST_ASSERT_MSG(num_ref_basis_ == static_cast<int>(topology_->getNodeCount()),
                    "presently, the basis size must equal the number of nodes");
+  
+  // construct a view of residual data and indices for convenience
+  RCP<FieldContainer<const ResidT> > residual =
+      GenerateConstView(resid_data_, resid_map_offset_.at("residual"),
+                        Teuchos::tuple(num_elems_, num_ref_basis_, num_pdes_));
+  RCP<FieldContainer<const typename MeshT::LocIdxT> > index =
+      GenerateConstView(index_data_, 0,
+                        Teuchos::tuple(num_elems_, num_ref_basis_));
+  // build some arrays for holding the residual and jacobian blocks
+  typedef Teuchos::SerialDenseVector<int,double> VectorBlock;
+  typedef Teuchos::SerialDenseMatrix<int,double> MatrixBlock;
+  ArrayRCP<VectorBlock> rhs_block(num_ref_basis_, VectorBlock(num_pdes_));
+  ArrayRCP<MatrixBlock> jac_block(num_ref_basis_*num_ref_basis_,
+                                  MatrixBlock(num_pdes_,num_pdes_));
+#if 0
+  FieldContainer<VectorBlock> rhs_block(num_ref_basis_);
+  FieldContainer<MatrixBlock> jac_block(num_ref_basis_, num_ref_basis_);
+  for (int i = 0; i < num_ref_basis_; ++i) {
+    rhs_block(i).size(num_pdes_);
+    for (int i2 = 0; i2 < num_ref_basis_; ++i2) 
+      jac_block(i,i2).shape(num_pdes_,num_pdes_);
+  }
+#endif
   // assemble into global matrix
+  int set_num_elems = num_elems_;
+  if (set_idx == num_sets_-1) set_num_elems = rem_num_elems_;
+  int num_AD_dep_vars = num_ref_basis_*num_pdes_;
+  for (int ielem = 0; ielem < set_num_elems; ++ielem) {
+    // build the blocks for the jacobian and rhs
+    for (int i = 0; i < num_ref_basis_; ++i)
+      for (int j = 0; j < num_pdes_; ++j) {
+        rhs_block[i](j) = (*residual)(ielem, i, j).val();
+        for (int i2 = 0; i2 < num_ref_basis_; ++i2)
+          for (int j2 = 0; j2< num_pdes_; ++j2)
+            jac_block[i*num_ref_basis_ + i2](j,j2) =
+                (*residual)(ielem, i, j).dx(i2*num_pdes_+j2);
+      }
+    // insert blocks into jacobian and rhs
+    for (int i = 0; i < num_ref_basis_; ++i) {
+      for (int j = 0; j < num_pdes_; ++j)
+        rhs[(*index)(ielem,i)*num_pdes_+j] = rhs_block[i](j);
+      for (int i2 = 0; i2 < num_ref_basis_; ++i2) 
+        jacobian->sumIntoLocalBlockEntry((*index)(ielem,i), (*index)(ielem,i2),
+                                         jac_block[i*num_ref_basis_ + i2]);
+    }
+  }
 #if 0
   if (set == num_sets_-1) set_num_elems = rem_num_elems_;
   for (int ielem = 0; ielem < set_num_elems; ielem++) {
@@ -198,8 +258,8 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::BuildSystem(
   *out_ << "WorkSet::BuildSystem: creating linear system\n\n";
 #endif
   // get some views of the Tpetra objects
-  ArrayRCP<const ScalarT> sol_view = sol->get1dView(); //sol->getData();
-  ArrayRCP<ScalarT> rhs_view = rhs->get1dViewNonConst();
+  ArrayRCP<const double> sol_view = sol->get1dView(); //sol->getData();
+  ArrayRCP<double> rhs_view = rhs->get1dViewNonConst();
 
   // loop over the workset batches
   int set_num_elems = num_elems_;
@@ -208,13 +268,13 @@ void WorkSet<NodeT,ScalarT,MeshT,VectorT,MatrixT>::BuildSystem(
     // store mesh node coords, dof indices, and solution in the appropriate
     // arrays
     mesh.CopyElemNodeCoords(mesh_data_, set, num_elems_, num_sets_);
-    mesh.CopyElemDOFIndices(index_data_, set, num_elems_, num_sets_, num_pdes_);
+    mesh.CopyElemDOFIndices(index_data_, set, num_elems_, num_sets_);
     CopySolution(set, sol_view);
     // evaluate the necessary fields
     for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
       (*evali)->Evaluate(topology_, cub_points_, cub_weights_, vals_, grads_);
     // insert data into matrix and rhs vector
-    Assemble(rhs_view, jacobian, mesh);
+    Assemble(set, rhs_view, jacobian);
   }
 }
 //==============================================================================

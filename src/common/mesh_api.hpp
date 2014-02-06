@@ -11,7 +11,8 @@
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_ArrayRCPDecl.hpp"
 #include "Intrepid_FieldContainer.hpp"
-#include "Tpetra_CrsMatrix.hpp"
+#include "Tpetra_BlockMap.hpp"
+#include "Tpetra_BlockCrsGraph_decl.hpp"
 
 namespace davinci {
 
@@ -19,8 +20,8 @@ using Teuchos::ParameterList;
 using Teuchos::RCP;
 using Teuchos::ArrayRCP;
 using Intrepid::FieldContainer;
-using Tpetra::Map;
-using Tpetra::CrsGraph;
+using Tpetra::BlockMap;
+using Tpetra::BlockCrsGraph;
 
 /*!
  * \class MeshAPI
@@ -60,9 +61,11 @@ class MeshAPI {
 
   /*
    * \brief create map that indicates range of local DOF
-   * \param[in] map - Tpetra map
+   * \param[in] num_pdes - number of PDEs/vars at each node (defines block size)
+   * \param[out] map - pointer to Tpetra BlockMap
    */
-  virtual void BuildTpetraMap(RCP<const Map<LocIdxT, GlbIdxT> >& map)
+  virtual void BuildTpetraMap(const int& num_pdes,
+                              RCP<const BlockMap<LocIdxT, GlbIdxT> >& map)
       const = 0;
   
   /*!
@@ -71,8 +74,8 @@ class MeshAPI {
    * \param[out] jac_graph - graph for the Jacobian matrix
    */
   virtual void BuildMatrixGraph(
-      const RCP<const Map<LocIdxT, GlbIdxT> >& map,
-      RCP<CrsGraph<LocIdxT, GlbIdxT> >& jac_graph) const = 0;
+      const RCP<const BlockMap<LocIdxT, GlbIdxT> >& map,
+      RCP<BlockCrsGraph<LocIdxT, GlbIdxT> >& jac_graph) const = 0;
   
   /*!
    * \brief access to the number of nodes; local to this process if parallel
@@ -101,18 +104,16 @@ class MeshAPI {
                                   const int& num_sets) const = 0;
 
   /*
-   * \brief returns the indices for the unknowns on each element
-   * \param[out] dof_index - array of unknown variables' indices
+   * \brief returns the indices for the basis functions on each element
+   * \param[out] dof_index - array of (local) basis function indices
    * \param[in] set_idx - the workset index we want the coordinates from
    * \param[in] num_elems_per_set - the number of elements in each (typical) set
    * \param[in] num_sets - the total number of sets
-   * \param[in] num_pdes - number of equations
    */
   virtual void CopyElemDOFIndices(ArrayRCP<LocIdxT>& dof_index,
                                   const int& set_idx,
                                   const int& num_elems_per_set,
-                                  const int& num_sets,
-                                  const int& num_pdes) const = 0;
+                                  const int& num_sets) const = 0;
 };
 
 } // namespace davinci

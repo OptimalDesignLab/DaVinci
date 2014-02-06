@@ -74,18 +74,20 @@ class SimpleMesh : public MeshAPI<int,int> {
 
   /*
    * \brief create map that indicates range of local DOF
-   * \param[in] map - Tpetra map
+   * \param[in] num_pdes - number of PDEs/vars at each node (defines block size)
+   * \param[out] map - pointer to Tpetra BlockMap
    */
-  void BuildTpetraMap(RCP<const Map<LocIdxT,GlbIdxT> >& map) const;
+  void BuildTpetraMap(const int& num_pdes,
+                      RCP<const BlockMap<LocIdxT,GlbIdxT> >& map) const;
   
   /*!
    * \brief create the graph correpsonding to the Jacobian matrix
-   * \param[in] map - Tpetra map
+   * \param[in] map - pointer to Tpetra BlockMap
    * \param[out] jac_graph - graph for the Jacobian matrix
    */
   void BuildMatrixGraph(
-      const RCP<const Map<LocIdxT,GlbIdxT> >& map,
-      RCP<CrsGraph<LocIdxT,GlbIdxT> >& jac_graph) const;
+      const RCP<const BlockMap<LocIdxT,GlbIdxT> >& map,
+      RCP<BlockCrsGraph<LocIdxT,GlbIdxT> >& jac_graph) const;
   
   /*!
    * \brief Maps a reference node index in a given element to its global index
@@ -117,19 +119,18 @@ class SimpleMesh : public MeshAPI<int,int> {
                           const int& num_sets) const;
 
   /*
-   * \brief returns the indices for the unknowns on each element
-   * \param[out] dof_index - array of unknown variables' indices
+   * \brief returns the indices for the basis functions on each element
+   * \param[out] dof_index - array of (local) basis function indices
    * \param[in] set_idx - the workset index we want the coordinates from
    * \param[in] num_elems_per_set - the number of elements in each (typical) set
    * \param[in] num_sets - the total number of sets
-   * \param[in] num_pdes - number of equations
    *
    * \warning Presently, this expects the mesh vertices to be the only nodal
    * degrees of freedom, so no high order solutions at this time.
    */
   void CopyElemDOFIndices(ArrayRCP<LocIdxT>& dof_index, const int& set_idx,
-                          const int& num_elems_per_set, const int& num_sets,
-                          const int& num_pdes) const;
+                          const int& num_elems_per_set, const int& num_sets
+                          ) const;
   
  private:
   int dim_; ///< spatial dimension

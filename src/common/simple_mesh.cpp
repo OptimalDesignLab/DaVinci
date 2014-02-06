@@ -92,28 +92,34 @@ void SimpleMesh::BuildRectangularMesh(const double& Lx, const double& Ly,
   }
 }
 //==============================================================================
-void SimpleMesh::BuildTpetraMap(RCP<const Map<LocIdxT,GlbIdxT> >& map) const {
+void SimpleMesh::BuildTpetraMap(const int& num_pdes,
+    RCP<const BlockMap<LocIdxT,GlbIdxT> >& map) const {
   BOOST_ASSERT_MSG(index_.size() > 0, "Mesh must be initialized");
   BOOST_ASSERT_MSG(comm_->getSize() == 1, "Not generalized for parallel yet");
 #ifdef DAVINCI_VERBOSE
   *out_ << "SimpleMesh: creating Tpetra Map\n";
 #endif
-  map = Tpetra::createContigMap<LocIdxT,GlbIdxT>(-1, num_nodes_, comm_);
+  //map = Tpetra::createContigMap<LocIdxT,GlbIdxT>(-1, num_nodes_, comm_);
+  GlbIdxT index_base = 0;
+  map = Teuchos::rcp(new BlockMap<LocIdxT,GlbIdxT>(-1, num_nodes_, num_pdes,
+                                                   index_base, comm_));
 #ifdef DAVINCI_VERBOSE
   *out_ << "SimpleMesh: total number of nodes (global) = "
-        << map->getGlobalNumElements() << "\n";
+        << map->getGlobalNumBlocks() << "\n";
 #endif
 }
 //==============================================================================
-void SimpleMesh::BuildMatrixGraph(const RCP<const Map<LocIdxT,GlbIdxT> >& map,
-                                  RCP<CrsGraph<LocIdxT,GlbIdxT> >& jac_graph
-                                  ) const {
+void SimpleMesh::BuildMatrixGraph(
+    const RCP<const BlockMap<LocIdxT,GlbIdxT> >& map,
+    RCP<BlockCrsGraph<LocIdxT,GlbIdxT> >& jac_graph) const {
   BOOST_ASSERT_MSG(index_.size() > 0, "Mesh must be initialized");
   BOOST_ASSERT_MSG(comm_->getSize() == 1, "Not generalized for parallel yet");
 #ifdef DAVINCI_VERBOSE
   *out_ << "SimpleMesh: creating Graph for Jacobian\n";
 #endif
-  jac_graph = Tpetra::createCrsGraph<LocIdxT,GlbIdxT>(map);
+  const int max_entries_per_row = 7; // this should be based on topology
+  jac_graph = Teuchos::rcp(new BlockCrsGraph<LocIdxT,GlbIdxT>(
+      map, max_entries_per_row));
   int num_nodes_per_elem = 3;
   using Teuchos::Tuple;
   using Teuchos::tuple;
@@ -126,7 +132,7 @@ void SimpleMesh::BuildMatrixGraph(const RCP<const Map<LocIdxT,GlbIdxT> >& map,
 }
   jac_graph->fillComplete();
 #ifdef DAVINCI_VERBOSE
-  jac_graph->print(*out_);
+  //jac_graph->print(*out_); // currently not supported for BlockGraphs
 #endif
 }
 //==============================================================================
@@ -153,8 +159,7 @@ void SimpleMesh::CopyElemNodeCoords(ArrayRCP<double>& node_coords,
 void SimpleMesh::CopyElemDOFIndices(ArrayRCP<LocIdxT>& dof_index,
                                     const int& set_idx,
                                     const int& num_elems_per_set,
-                                    const int& num_sets,
-                                    const int& num_pdes) const {
+                                    const int& num_sets) const {
   BOOST_ASSERT_MSG(set_idx >= 0 && set_idx < num_sets,
                    "set_idx number must be positive and less than num_sets_");
   // set the DOF indices
@@ -164,12 +169,9 @@ void SimpleMesh::CopyElemDOFIndices(ArrayRCP<LocIdxT>& dof_index,
   int num_nodes_per_elem = 3;
   for (int ielem = 0; ielem < set_num_elems; ielem++) {
     int k = set_idx*num_elems_per_set + ielem;
-    for (int i = 0; i < num_nodes_per_elem; i++) {
-      LocIdxT node_idx = index_(elem_to_node_(k, i));
-      for (int j = 0; j < num_pdes; j++)
-        dof_index[(ielem*num_nodes_per_elem+i)*num_pdes + j]
-            = num_pdes*node_idx + j;
-    }
+    for (int i = 0; i < num_nodes_per_elem; i++)
+      dof_index[ielem*num_nodes_per_elem + i]
+          = index_(elem_to_node_(k, i));
   }
 }
 //==============================================================================

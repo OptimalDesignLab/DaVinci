@@ -83,7 +83,7 @@ class WorkSet {
    * \warning This is not yet checked for consistency with topology_
    * \todo Make a check for consistency with topology_!
    */
-  void DefineBasis(const Basis<ScalarT, FieldContainer<ScalarT> >& basis);
+  void DefineBasis(const Basis<double, FieldContainer<double> >& basis);
 
   /*!
    * \brief sets the evaluators that define the problem on this workset
@@ -116,16 +116,16 @@ class WorkSet {
 
   /*!
    * \brief uses resid_data_ to fill in the linear-system objects
+   * \param[in] set_idx - index of the desired workset batch
    * \param[in,out] rhs - the right-hand-side vector (view of a Tpetra vector)
    * \param[in,out] jacobian - the system matrix (view of a Tpetra matrix)
-   * \param[in] mesh - a mesh object to reference node indices
    *
    * \warning This is not general enough in its current form.  It assumes that
    * the basis functions are 1-to-1 with the mesh nodes (and have the same local
    * index)
    */
-  void Assemble(const ArrayRCP<double>& rhs, const RCP<MatrixT>& jacobian,
-                const MeshT& mesh);
+  void Assemble(const int& set_idx, const ArrayRCP<double>& rhs,
+                const RCP<MatrixT>& jacobian);
   
   /*!
    * \brief fills the given stiffness matrix and right-hand-side vector
@@ -158,7 +158,7 @@ class WorkSet {
   int num_ref_basis_; ///< number of basis functions on the reference element
   RCP<ostream> out_; ///< output stream
   RCP<CellTopology> topology_; ///< element topology
-  RCP<const Basis<ScalarT, FieldContainer<ScalarT> >
+  RCP<const Basis<double, FieldContainer<double> >
       > basis_; ///< finite element basis on reference element
   //ArrayRCP<Evaluator<NodeT,ScalarT> > evaluators_; ///< graph of the evaluators
   std::list<Evaluator<NodeT,ScalarT>* > evaluators_; ///< graph of the evaluators 

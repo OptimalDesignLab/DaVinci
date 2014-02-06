@@ -14,7 +14,9 @@
 #include "Intrepid_HGRAD_HEX_C1_FEM.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "Tpetra_DefaultPlatform.hpp"
-#include "Tpetra_CrsMatrix.hpp"
+#include "Tpetra_BlockMultiVector_decl.hpp"
+#include "Tpetra_VbrMatrix.hpp"
+#include "Sacado_Fad_SFad.hpp"
 
 #include "work_set.hpp"
 #include "simple_mesh.hpp"
@@ -33,9 +35,9 @@ using davinci::Evaluator;
 using davinci::MetricJacobian;
 using davinci::Laplace;
 
-typedef Tpetra::Vector<double,int,int> Vector;
-typedef Tpetra::CrsMatrix<double,int,int> Matrix;
-typedef Tpetra::Map<int,int> Map;
+typedef Tpetra::BlockMultiVector<double,int,int> Vector;
+typedef Tpetra::VbrMatrix<double,int,int> Matrix;
+typedef Tpetra::BlockMap<int,int> Map;
 //typedef Tpetra::BlockMap<int,int> BlockMap;
 
 BOOST_AUTO_TEST_SUITE(WorkSet_suite)
@@ -124,11 +126,20 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   // Define a rectangular mesh  
   SimpleMesh Mesh(out, comm);
   double Lx = 1.0, Ly = 1.0;
-  int Nx = 10, Ny = 10;
+  //int Nx = 10, Ny = 10;
+  int Nx = 2, Ny = 2;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
 
+  // Use mesh to create Tpetra map and graph
+  RCP<const Tpetra::BlockMap<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
+  const int num_pdes = 1;
+  Mesh.BuildTpetraMap(num_pdes, map);
+  RCP<Tpetra::BlockCrsGraph<int,int> > jac_graph;
+  Mesh.BuildMatrixGraph(map, jac_graph);
+  
   // Create a Workset for the Laplace PDE
-  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(out);
+  typedef Sacado::Fad::SFad<double,3*num_pdes> ADType;
+  WorkSet<double,ADType,SimpleMesh,Vector,Matrix> MyWorkSet(out);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -137,31 +148,62 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double>
                                    > tri_hgrad_basis;
   MyWorkSet.DefineBasis(tri_hgrad_basis);
-  std::list<Evaluator<double,double>* > evaluators;
-  evaluators.push_back(new MetricJacobian<double,double>());
-  evaluators.push_back(new Laplace<double,double>());
+  std::list<Evaluator<double,ADType>* > evaluators;
+  evaluators.push_back(new MetricJacobian<double,ADType>());
+  evaluators.push_back(new Laplace<double,ADType>());
   MyWorkSet.DefineEvaluators(evaluators);
-  int num_pdes = 1;
   int total_elems = Mesh.get_num_elems();
-  int nelems = 10;
+  //int nelems = 10;
+  int nelems = 2;
   MyWorkSet.ResizeSets(num_pdes, total_elems, nelems);
   
-  // create Tpetra map and linear algebra objects
-  const int index_base = 0; // where indexing starts, i.e. c-style
-  const size_t num_rows = Mesh.get_num_nodes();
-  const Tpetra::global_size_t num_global_rows = num_rows*comm->getSize();
-  const int num_local = num_global_rows; // serial for now
-  RCP<const Map> map =
-      Tpetra::createContigMap<int,int>(num_global_rows, num_local, comm);
-#if 0
-  RCP<const BlockMap> block_map = new
-      Tpetra::BlockMap(num_global_rows, 1, 0, comm);
-#endif
-  RCP<Vector> sol = Tpetra::createVector<double>(map);
+  // Create solution, rhs, and jacobian
+  RCP<Vector> sol = rcp(
+      new Tpetra::BlockMultiVector<double,SimpleMesh::LocIdxT,
+      SimpleMesh::GlbIdxT>(map,1));
   sol->putScalar(1.0);
-  RCP<Vector> rhs = Tpetra::createVector<double>(map);
-  RCP<Matrix> jacobian = Tpetra::createCrsMatrix<double,int,int>(map);
+  RCP<Vector> rhs = rcp(
+      new Tpetra::BlockMultiVector<double,SimpleMesh::LocIdxT,
+      SimpleMesh::GlbIdxT>(map,1));
+  RCP<Matrix> jacobian = rcp(
+      new Tpetra::VbrMatrix<double,int,int>(jac_graph));
+  jacobian->fillComplete();
   MyWorkSet.BuildSystem(Mesh, sol, rhs, jacobian);
+
+  // The Laplacian is applied to a constant, so the residual here should be zero
+  // everywhere (no boundary conditions)
+  Teuchos::ArrayRCP<const double> rhs_view = rhs->get1dView();
+  for (int i = 0; i < rhs->getLocalLength(); i++)
+    BOOST_CHECK_SMALL(rhs_view[i], 1e-13);
+  
+#if 0
+  // uncomment to inspect rhs and jacobian
+  out << "rhs = ";
+  for (int i = 0; i < rhs->getLocalLength(); i++)
+    out << rhs_view[i] << " ";
+  out << "\n";
+  out << "jacobian = ";
+  Teuchos::ArrayView<const int> block_cols;
+  Teuchos::Array<int> col_stride;
+  Teuchos::ArrayRCP<const double> block_entries;
+  for (int i = 0; i < map->getNodeNumBlocks(); i++) {
+    int row_stride;
+    jacobian->getLocalBlockRowView(i, row_stride, block_cols, col_stride,
+                                   block_entries);
+    out << "i = " << i << ":\n";
+    out << "\trow_stride = " << row_stride << "\n";
+    out << "\tblock_cols = ";
+    for (int j = 0; j < block_cols.size(); j++)
+      out << block_cols[j] << " ";
+    out << "\n\tcol_stride = ";
+    for (int j = 0; j < col_stride.size(); j++)
+      out << col_stride[j] << " ";
+    out << "\n\tblock_entries = ";
+    for (int j = 0; j < block_entries.size(); j++)
+      out << block_entries[j] << " ";
+    out << "\n";
+  }
+#endif
 }
 
 #if 0
