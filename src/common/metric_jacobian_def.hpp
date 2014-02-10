@@ -62,13 +62,13 @@ void MetricJacobian<NodeT,ScalarT>::SetDataViews(
 //==============================================================================
 template <typename NodeT, typename ScalarT>
 void MetricJacobian<NodeT,ScalarT>::Evaluate(
-    const RCP<CellTopology>& topology,
+    const CellTopology& topology,
     const FieldContainer<double>& cub_points,
     const FieldContainer<double>& cub_weights,
     const FieldContainer<double>& basis_vals,
     const FieldContainer<double>& basis_grads) {
   typedef Intrepid::CellTools<NodeT> CellTools;
-  CellTools::setJacobian(*jacob_, cub_points, *node_coords_, *topology);
+  CellTools::setJacobian(*jacob_, cub_points, *node_coords_, topology);
   CellTools::setJacobianInv(*jacob_inv_, *jacob_);
   CellTools::setJacobianDet(*jacob_det_, *jacob_);
 }

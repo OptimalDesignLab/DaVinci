@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
     mesh_data[i*num_nodes_per_elem*dim+4] = static_cast<double>(i); //< x
     mesh_data[i*num_nodes_per_elem*dim+5] = 1.0; //< y
   }
-  jacob->Evaluate(topology, cub_points, cub_weights, vals, grads);
+  jacob->Evaluate(*topology, cub_points, cub_weights, vals, grads);
 
   // check that Jacobian determinant is 1.0 at all cubature points
   for (int i = 0; i < num_elems; i++)

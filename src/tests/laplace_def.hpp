@@ -74,7 +74,7 @@ void Laplace<NodeT,ScalarT>::SetDataViews(
 //==============================================================================
 template <typename NodeT, typename ScalarT>
 void Laplace<NodeT,ScalarT>::Evaluate(
-    const RCP<CellTopology>& topology,
+    const CellTopology& topology,
     const FieldContainer<double>& cub_points,
     const FieldContainer<double>& cub_weights,
     const FieldContainer<double>& basis_vals,

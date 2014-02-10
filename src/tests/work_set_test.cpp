@@ -35,6 +35,8 @@ using davinci::Evaluator;
 using davinci::MetricJacobian;
 using davinci::Laplace;
 
+typedef Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >
+TriBasis;
 typedef Tpetra::BlockMultiVector<double,int,int> Vector;
 typedef Tpetra::VbrMatrix<double,int,int> Matrix;
 typedef Tpetra::BlockMap<int,int> Map;
@@ -43,61 +45,38 @@ typedef Tpetra::BlockMap<int,int> Map;
 BOOST_AUTO_TEST_SUITE(WorkSet_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
-}
-
-BOOST_AUTO_TEST_CASE(Topology) {
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
-  Teuchos::RCP<const CellTopologyData> cell(
-      shards::getCellTopologyData<shards::Triangle<3> >(), false);
-  MyWorkSet.DefineTopology(cell);
-  cell = Teuchos::rcp(
-      shards::getCellTopologyData<shards::Tetrahedron<4> >(), false);
-  MyWorkSet.DefineTopology(cell);
+  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
 }
 
 BOOST_AUTO_TEST_CASE(Cubature) {
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
-  Teuchos::RCP<const CellTopologyData> cell(
-      shards::getCellTopologyData<shards::Triangle<3> >(), false);
-  MyWorkSet.DefineTopology(cell);
+  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
   for (int deg = 1; deg < 10; deg++)
     MyWorkSet.DefineCubature(deg);
 }
 
-BOOST_AUTO_TEST_CASE(Basis) {
-  typedef double ScalarT;
-  WorkSet<ScalarT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
-  Teuchos::RCP<const CellTopologyData> cell(
-      shards::getCellTopologyData<shards::Triangle<3> >(), false);
-  MyWorkSet.DefineTopology(cell);
-  int degree = 2;
-  MyWorkSet.DefineCubature(degree);
-  Intrepid::Basis_HGRAD_TRI_C1_FEM<ScalarT, FieldContainer<ScalarT>
-                                   > tri_hgrad_basis;
-  MyWorkSet.DefineBasis(tri_hgrad_basis);
+BOOST_AUTO_TEST_CASE(EvaluateBasis) {
+  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
+  int deg = 2;
+  MyWorkSet.DefineCubature(deg);
+  MyWorkSet.EvaluateBasis();
 }
 
 BOOST_AUTO_TEST_CASE(Evaluators) {
   typedef double ScalarT;
   typedef double NodeT;
-  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
+  WorkSet<NodeT,ScalarT,SimpleMesh,TriBasis> MyWorkSet(std::cout);
   std::list<Evaluator<NodeT,ScalarT>* > evaluators;
   evaluators.push_back(new MetricJacobian<NodeT,ScalarT>());
   evaluators.push_back(new Laplace<NodeT,ScalarT>());
   MyWorkSet.DefineEvaluators(evaluators);
 }
 
-BOOST_AUTO_TEST_CASE(ResizeSets) {  
-  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
-  Teuchos::RCP<const CellTopologyData> cell(
-      shards::getCellTopologyData<shards::Triangle<3> >(), false);
-  MyWorkSet.DefineTopology(cell);
+BOOST_AUTO_TEST_CASE(ResizeSets) {
+  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
   int degree = 2;
   MyWorkSet.DefineCubature(degree);
-  Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double>
-                                   > tri_hgrad_basis;
-  MyWorkSet.DefineBasis(tri_hgrad_basis);  
+  MyWorkSet.EvaluateBasis();
+
   std::list<Evaluator<double,double>* > evaluators;
   evaluators.push_back(new MetricJacobian<double,double>());
   evaluators.push_back(new Laplace<double,double>());
@@ -139,15 +118,10 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   
   // Create a Workset for the Laplace PDE
   typedef Sacado::Fad::SFad<double,3*num_pdes> ADType;
-  WorkSet<double,ADType,SimpleMesh> MyWorkSet(out);
-  Teuchos::RCP<const CellTopologyData> cell(
-      shards::getCellTopologyData<shards::Triangle<3> >(), false);
-  MyWorkSet.DefineTopology(cell);
+  WorkSet<double,ADType,SimpleMesh,TriBasis> MyWorkSet(out);
   int degree = 2;
   MyWorkSet.DefineCubature(degree);
-  Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double>
-                                   > tri_hgrad_basis;
-  MyWorkSet.DefineBasis(tri_hgrad_basis);
+  MyWorkSet.EvaluateBasis();
   std::list<Evaluator<double,ADType>* > evaluators;
   evaluators.push_back(new MetricJacobian<double,ADType>());
   evaluators.push_back(new Laplace<double,ADType>());

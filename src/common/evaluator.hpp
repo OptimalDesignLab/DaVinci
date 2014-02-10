@@ -117,13 +117,13 @@ class Evaluator {
   
   /*!
    * \brief compute the dependent variables based on the independent ones
-   * \param[in] toplogy - shards CellTopology of the elements in the workset
+   * \param[in] topology - shards CellTopology of the elements in the workset
    * \param[in] cub_points - cubature points on reference element
    * \param[in] cub_weights - cubature weights on reference element
    * \param[in] basis_vals - the ref element basis values at the cubature points
    * \param[in] basis_grads - the basis gradient at the cubature points
    */  
-  virtual void Evaluate(const RCP<CellTopology>& topology,
+  virtual void Evaluate(const CellTopology& topology,
                         const FieldContainer<double>& cub_points,
                         const FieldContainer<double>& cub_weights,
                         const FieldContainer<double>& basis_vals,

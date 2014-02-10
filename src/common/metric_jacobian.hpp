@@ -81,7 +81,7 @@ class MetricJacobian : public Evaluator<NodeT,ScalarT> {
    * \param[in] basis_vals - the ref element basis values at the cubature points
    * \param[in] basis_grads - the basis gradient at the cubature points
    */  
-  void Evaluate(const RCP<CellTopology>& topology,
+  void Evaluate(const CellTopology& topology,
                 const FieldContainer<double>& cub_points,
                 const FieldContainer<double>& cub_weights,
                 const FieldContainer<double>& basis_vals,

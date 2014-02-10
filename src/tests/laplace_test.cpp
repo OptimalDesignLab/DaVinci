@@ -178,8 +178,8 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
     // node 3
     soln_data[i*num_ref_basis+2] = static_cast<double>(i);
   }
-  jacob->Evaluate(topology, cub_points, cub_weights, vals, grads);
-  laplace_pde->Evaluate(topology, cub_points, cub_weights, vals, grads);
+  jacob->Evaluate(*topology, cub_points, cub_weights, vals, grads);
+  laplace_pde->Evaluate(*topology, cub_points, cub_weights, vals, grads);
   // check that gradient is (1,0) at all cubature points
   for (int i = 0; i < num_elems; ++i)
     for (int j = 0; j < num_cub_points; ++j) {

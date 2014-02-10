@@ -30,21 +30,18 @@ using Intrepid::Basis;
  * \tparam NodeT - the scalar type for node-based data (double, sacado AD, etc)
  * \tparam ScalarT - the scalar type for sol-based data (double, sacado AD, etc)
  * \tparam MeshT - a generic class of mesh
+ * \tparam BasisT - an intrepid basis class
  *
  * A workset is used to evaluate residuals and Jacobians for a set of "elements"
- * with identical topology.
+ * with identical topology and basis function.  The Jacobians may be with
+ * respect to the solution or the nodes, depending on which is an AD type.
  *
- * \remark It is anticipated the these elements may be elements, their faces, or
- * their edges.  For example, we may use a WorkSet for volume integrals in the
- * semi-linear form, and a separate WorkSet for surface integrals.  This has yet
- * to be decided.
- *
- * \remark Should we bother keeping the topology_ and basis_ members, or should
- * the information provided by these be stripped out, similar to the cubature?
- * At least one of these seems redundant.
+ * \remark These elements may be elements, their faces, or their edges.  For
+ * example, we may use a WorkSet for volume integrals in the semi-linear form,
+ * and a separate WorkSet for surface integrals.
  */
-template <typename NodeT, typename ScalarT, typename MeshT>
-class WorkSet {
+template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
+class WorkSet : public BasisT {
  public:
   
   /*!
@@ -72,27 +69,17 @@ class WorkSet {
    * \param[in] out - a valid output stream
    */
   WorkSet(ostream& out);
-
-  /*!
-   * \brief initializes the topology of all elements in this workset
-   * \param[in] cell - pointer to shards cell topology attributes
-   */
-  void DefineTopology(const RCP<const CellTopologyData>& cell);
   
   /*!
-   * \brief sets the cubature points and weights based on degree and topology_
+   * \brief sets the cubature points and weights based on degree and topology
    * \param[in] degree - highest polynomial degree cubature is exact
    */
   void DefineCubature(const int& degree);
 
   /*!
    * \brief evaluates the basis and its derivatives at the cubature points
-   * \param[in] basis - the desired basis for the elements
-   *
-   * \warning This is not yet checked for consistency with topology_
-   * \todo Make a check for consistency with topology_!
    */
-  void DefineBasis(const Basis<double, FieldContainer<double> >& basis);
+  void EvaluateBasis();
 
   /*!
    * \brief sets the evaluators that define the problem on this workset
@@ -100,7 +87,6 @@ class WorkSet {
    */
   void DefineEvaluators(
       const std::list<Evaluator<NodeT,ScalarT>* >& evaluators);
-  //      const ArrayRCP<Evaluator<NodeT,ScalarT> >& evaluators);
   
   /*!
    * \brief defines the size of the worksets
@@ -110,7 +96,6 @@ class WorkSet {
    */
   void ResizeSets(const int& num_pdes, const int& total_elems,
                   const int& num_elems_per_set);
-
 
   /*!
    * \brief copies the solution from a linear algebra object into soln_data_
@@ -146,15 +131,6 @@ class WorkSet {
   void BuildSystem(const MeshT& mesh, const RCP<const VectorT>& sol,
                    const RCP<VectorT>& rhs, const RCP<MatrixT>& jacobian);
   
-#if 0
-  /*!
-   * \brief copies the physical node coordinates from a mesh into the workset
-   * \param[in] mesh - mesh object to reference physical node locations
-   * \param[in] set_idx - the batch of elements whose nodes we want
-   */
-  void CopyMeshCoords(const MeshT& mesh, const int& set_idx);
-#endif
-  
  protected:
   int dim_; ///< spatial dimension that the fields are embedded in
   int num_pdes_; ///< number of unknowns per degree of freedom = # of PDEs
@@ -166,10 +142,6 @@ class WorkSet {
   int num_cub_points_; ///< number of cubature points
   int num_ref_basis_; ///< number of basis functions on the reference element
   RCP<ostream> out_; ///< output stream
-  RCP<CellTopology> topology_; ///< element topology
-  RCP<const Basis<double, FieldContainer<double> >
-      > basis_; ///< finite element basis on reference element
-  //ArrayRCP<Evaluator<NodeT,ScalarT> > evaluators_; ///< graph of the evaluators
   std::list<Evaluator<NodeT,ScalarT>* > evaluators_; ///< graph of the evaluators 
   FieldContainer<double> cub_points_; ///< cubature point locations
   FieldContainer<double> cub_weights_; ///< cubature weights
