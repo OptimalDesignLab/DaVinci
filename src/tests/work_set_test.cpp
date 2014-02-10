@@ -43,11 +43,11 @@ typedef Tpetra::BlockMap<int,int> Map;
 BOOST_AUTO_TEST_SUITE(WorkSet_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
 }
 
 BOOST_AUTO_TEST_CASE(Topology) {
-  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(Topology) {
 }
 
 BOOST_AUTO_TEST_CASE(Cubature) {
-  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(Cubature) {
 
 BOOST_AUTO_TEST_CASE(Basis) {
   typedef double ScalarT;
-  WorkSet<ScalarT,ScalarT,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
+  WorkSet<ScalarT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(Basis) {
 BOOST_AUTO_TEST_CASE(Evaluators) {
   typedef double ScalarT;
   typedef double NodeT;
-  WorkSet<NodeT,ScalarT,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
+  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(std::cout);
   std::list<Evaluator<NodeT,ScalarT>* > evaluators;
   evaluators.push_back(new MetricJacobian<NodeT,ScalarT>());
   evaluators.push_back(new Laplace<NodeT,ScalarT>());
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(Evaluators) {
 }
 
 BOOST_AUTO_TEST_CASE(ResizeSets) {  
-  WorkSet<double,double,SimpleMesh,Vector,Matrix> MyWorkSet(std::cout);
+  WorkSet<double,double,SimpleMesh> MyWorkSet(std::cout);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   
   // Create a Workset for the Laplace PDE
   typedef Sacado::Fad::SFad<double,3*num_pdes> ADType;
-  WorkSet<double,ADType,SimpleMesh,Vector,Matrix> MyWorkSet(out);
+  WorkSet<double,ADType,SimpleMesh> MyWorkSet(out);
   Teuchos::RCP<const CellTopologyData> cell(
       shards::getCellTopologyData<shards::Triangle<3> >(), false);
   MyWorkSet.DefineTopology(cell);
@@ -205,44 +205,5 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   }
 #endif
 }
-
-#if 0
-BOOST_AUTO_TEST_CASE(CopyMeshCoords) {
-  WorkSet<double,SimpleMesh> MyWorkSet(std::cout);
-  Teuchos::RCP<const CellTopologyData> cell(
-      shards::getCellTopologyData<shards::Triangle<3> >(), false);
-  MyWorkSet.DefineTopology(cell);
-  int degree = 2;
-  MyWorkSet.DefineCubature(degree);
-
-  SimpleMesh Mesh(std::cout);
-  double Lx = 1.0, Ly = 1.0;
-  int Nx = 1000, Ny = 1000;
-  Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
-
-  int batch_size = 9;
-  MyWorkSet.ResizeSets(Mesh.get_num_elems(), batch_size);
-  std::div_t div_result = std::div(Mesh.get_num_elems()-1, batch_size);
-  int num_batch = div_result.quot+1;
-  std::cout << "batch_size = " << batch_size << "\n";
-  std::cout << "num_batch = " << num_batch << "\n";
-  std::cout << "remainder = " << div_result.rem+1 << "\n";
-  for (int bi = 0; bi < num_batch; bi++)
-    MyWorkSet.CopyMeshCoords(Mesh, bi);
-  
-  // Teuchos::Time workset_time("Time to access inside WorkSet: ");
-  // Teuchos::Time direct_time("Time to access directly      : ");
-  // workset_time.start();
-  // MyWorkSet.BuildSystem(Mesh);
-  // workset_time.stop();
-  // direct_time.start();
-  // for (int ielem = 0; ielem < Mesh.get_num_elems(); ielem++)
-  //   for (int i = 0; i < 3; i++)
-  //     int tmp = Mesh.ElemToNode(ielem, i);
-  // direct_time.stop();
-  // std::cout << workset_time.name() << workset_time.totalElapsedTime() << "\n";
-  // std::cout << direct_time.name() << direct_time.totalElapsedTime() << "\n";
-}
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()

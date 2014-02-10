@@ -10,12 +10,17 @@
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_ArrayRCP.hpp"
 #include "Teuchos_ParameterList.hpp"
+#include "Tpetra_DefaultPlatform.hpp"
+#include "Tpetra_BlockMultiVector_decl.hpp"
+#include "Tpetra_VbrMatrix.hpp"
 #include "model.hpp"
 //#include "workset.hpp"
 
 namespace davinci {
 
 using Teuchos::ArrayRCP;
+using Tpetra::BlockMap;
+using Tpetra::BlockCrsGraph;
 
 /*!
  * \class PDEModel
@@ -69,10 +74,23 @@ class PDEModel : public Model {
   ~PDEModel() {}
 
  private:
+  // convenience typedefs
+  typedef Sacado::Fad::SFad<double,3*num_pdes> AutoDiffT; // not general!!!
+  typedef Tpetra::BlockMultiVector<double,MeshT::LocIdxT,MeshT::GlbIdxT> VectorT;
+  typedef Tpetra::VbrMatrix<double,MeshT::LocIdxT,MeshT::GlbIdxT> MatrixT;
+  typedef WorkSet<double,AutoDiffT,MeshT> WorkSetT;
+  
   int num_sets_; ///< number of equation work sets
   MeshT mesh_; ///< mesh object
   //ArrayRCP<Equation> work_set_; ///< array of equation work sets
-  Equation work_set_;
+  //Equation work_set_;
+  
+
+  WorkSet<double,ADType,SimpleMesh> MyWorkSet(out);
+  RCP<const BlockMap<MeshT::LocIdxT,MeshT::GlbIdxT> >
+  map; ///< Tpetra map object that indicates local nodes and their indices
+  RCP<BlockCrsGraph<MeshT::LocIdxT,MeshT::GlbIdxT> >
+  jac_graph; ///< Tpetra graph for the Jacobian matrix
 };
 
 } // namespace davinci

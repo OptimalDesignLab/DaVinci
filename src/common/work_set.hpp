@@ -30,8 +30,6 @@ using Intrepid::Basis;
  * \tparam NodeT - the scalar type for node-based data (double, sacado AD, etc)
  * \tparam ScalarT - the scalar type for sol-based data (double, sacado AD, etc)
  * \tparam MeshT - a generic class of mesh
- * \tparam VectorT - generic distributed vector type (Epetra or Tpetra)
- * \tparam MatrixT - generic distributed sparse matrix type (Epetra or Tpetra)
  *
  * A workset is used to evaluate residuals and Jacobians for a set of "elements"
  * with identical topology.
@@ -45,8 +43,7 @@ using Intrepid::Basis;
  * the information provided by these be stripped out, similar to the cubature?
  * At least one of these seems redundant.
  */
-template <typename NodeT, typename ScalarT, typename MeshT, typename VectorT,
-          typename MatrixT>
+template <typename NodeT, typename ScalarT, typename MeshT>
 class WorkSet {
  public:
   
@@ -55,8 +52,20 @@ class WorkSet {
    * \brief type used for fields dependent on both NodeT and ScalarT
    */
   typedef typename davinci::Evaluator<NodeT,ScalarT>::ResidT ResidT;
-  
-  typedef ScalarT RealT;
+
+  /*!
+   * \typedef VectorT
+   * \brief linear algebra vector for system
+   */
+  typedef typename Tpetra::BlockMultiVector<
+    double, typename MeshT::LocIdxT, typename MeshT::GlbIdxT> VectorT;
+
+  /*!
+   * \typedef MatrixT
+   * \brief linear algebra matrix for system
+   */
+  typedef typename Tpetra::VbrMatrix<
+    double, typename MeshT::LocIdxT, typename MeshT::GlbIdxT> MatrixT;
   
   /*!
    * \brief constructor
