@@ -11,32 +11,32 @@
 #include "Teuchos_ArrayRCP.hpp"
 #include "Teuchos_ParameterList.hpp"
 #include "Tpetra_DefaultPlatform.hpp"
+#include "Tpetra_BlockCrsGraph_decl.hpp"
 #include "Tpetra_BlockMultiVector_decl.hpp"
 #include "Tpetra_VbrMatrix.hpp"
+#include "Intrepid_FieldContainer.hpp"
+#include "Intrepid_Basis.hpp"
 #include "model.hpp"
 //#include "workset.hpp"
 
 namespace davinci {
 
+using Teuchos::RCP;
 using Teuchos::ArrayRCP;
 using Tpetra::BlockMap;
 using Tpetra::BlockCrsGraph;
+
+using Intrepid::Basis;
 
 /*!
  * \class PDEModel
  * \brief Class for PDE models
  * \tparam MeshT - a generic class of mesh
- * \tparam Equation - a generic equation (workset) class
  *
  * This templated class should be used to create classes for PDE
  * discretizations.
- * 
- * This class is templated on MeshT for speed.  We could have included a
- * pointer to an abstract Mesh base class, but this would have introduced
- * dynamic polymorphism (which has a runtime overhead cost) on methods that need
- * to be fast.
  */
-template <typename MeshT, typename Equation>
+template <typename MeshT>
 class PDEModel : public Model {
  public:
 
@@ -51,6 +51,12 @@ class PDEModel : public Model {
   PDEModel(ostream& out, const RCP<const Comm<int> >& comm);
 
   /*!
+   * \brief defines the number of partial differential equations
+   * \param[in] num_pdes - number of PDEs
+   */
+  void set_num_pdes(const int& num_pdes);
+  
+  /*!
    * \brief build, read or otherwise create the mesh
    * \param[in] p - a list of options needed to initialize the desired mesh
    *
@@ -60,13 +66,18 @@ class PDEModel : public Model {
   void InitializeMesh(ParameterList& p);
 
   /*!
+   * \brief build the Tpetra Map and graph of the Jacobian
+   */
+  void CreateMapAndJacobianGraph();
+
+  /*!
    * \brief set topology, cubature, and allocate memory for equation sets
    * \param[in] p - a list of options needed to initialize the equation sets
    *
    * By using a Teuchos::ParameterList, we can pass in very general information
    * that can be used by the underlying Equation type
    */
-  void InitializeEquationSet(ParameterList& p);
+  //void InitializeEquationSet(ParameterList& p);
   
   /*!
    * \brief default destructor
@@ -75,22 +86,23 @@ class PDEModel : public Model {
 
  private:
   // convenience typedefs
-  typedef Sacado::Fad::SFad<double,3*num_pdes> AutoDiffT; // not general!!!
-  typedef Tpetra::BlockMultiVector<double,MeshT::LocIdxT,MeshT::GlbIdxT> VectorT;
-  typedef Tpetra::VbrMatrix<double,MeshT::LocIdxT,MeshT::GlbIdxT> MatrixT;
-  typedef WorkSet<double,AutoDiffT,MeshT> WorkSetT;
-  
-  int num_sets_; ///< number of equation work sets
-  MeshT mesh_; ///< mesh object
-  //ArrayRCP<Equation> work_set_; ///< array of equation work sets
-  //Equation work_set_;
-  
+  typedef typename MeshT::LocIdxT LocIdxT;
+  typedef typename MeshT::GlbIdxT GlbIdxT;
+  typedef Intrepid::Basis<double, Intrepid::FieldContainer<double> > BasisT;
+  typedef Tpetra::BlockMultiVector<double,LocIdxT,GlbIdxT> VectorT;
+  typedef Tpetra::VbrMatrix<double,LocIdxT,GlbIdxT> MatrixT;
 
-  WorkSet<double,ADType,SimpleMesh> MyWorkSet(out);
-  RCP<const BlockMap<MeshT::LocIdxT,MeshT::GlbIdxT> >
-  map; ///< Tpetra map object that indicates local nodes and their indices
-  RCP<BlockCrsGraph<MeshT::LocIdxT,MeshT::GlbIdxT> >
-  jac_graph; ///< Tpetra graph for the Jacobian matrix
+  int num_pdes_; ///< number of PDEs (number variables per node)
+  RCP<ostream> out_; ///< output stream
+  MeshT mesh_; ///< mesh object
+  ArrayRCP<BasisT> workset_; ///< array of equation work sets
+  RCP<const BlockMap<LocIdxT,GlbIdxT> >
+  map_; ///< Tpetra map object that indicates local nodes and their indices
+  RCP<BlockCrsGraph<LocIdxT,GlbIdxT> >
+  jac_graph_; ///< Tpetra graph for the Jacobian matrix
+  RCP<VectorT> sol_; ///< solution stored as a Tpetra linear algebra object
+  RCP<VectorT> rhs_; ///< linear-system right-hand-side
+  RCP<MatrixT> jac_; ///< linear-system Jacobian matrix
 };
 
 } // namespace davinci

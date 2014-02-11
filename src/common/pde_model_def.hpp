@@ -6,19 +6,46 @@
 
 namespace davinci {
 //==============================================================================
-template<typename MeshT, typename Equation>
-PDEModel<MeshT,Equation>::PDEModel(
+template<typename MeshT>
+PDEModel<MeshT>::PDEModel(
     ostream& out, const RCP<const Comm<int> >& comm)
-    : Model(out,comm), mesh_(out), work_set_(out) {
+    : Model(out,comm), mesh_(out,comm) {
+  out_ = Teuchos::rcp(&out, false);
+  num_pdes_ = -1;
+#ifdef DAVINCI_VERBOSE
+  *out_ << "PDEModel::PDEModel(): constructed PDEModel object.\n";
+#endif
 }
 //==============================================================================
-template<typename MeshT, typename Equation>
-void PDEModel<MeshT,Equation>::InitializeMesh(ParameterList& p) {
+template<typename MeshT>
+void PDEModel<MeshT>::set_num_pdes(const int& num_pdes) {
+  BOOST_ASSERT_MSG(num_pdes > 0, "number of PDEs must be positive");
+  num_pdes_ = num_pdes;
+#ifdef DAVINCI_VERBOSE
+  *out_ << "PDEModel::set_num_pdes(): number of PDEs set to " << num_pdes_
+        << "\n";
+#endif
+}
+//==============================================================================
+template<typename MeshT>
+void PDEModel<MeshT>::InitializeMesh(ParameterList& p) {
   mesh_.Initialize(p);
 }
 //==============================================================================
-template<typename MeshT, typename Equation>
-void PDEModel<MeshT,Equation>::InitializeEquationSet(ParameterList& p) {
+template<typename MeshT>
+void PDEModel<MeshT>::CreateMapAndJacobianGraph() {
+  BOOST_ASSERT_MSG(num_pdes_ > 0, "number of PDEs must be defined");
+  mesh_.BuildTpetraMap(num_pdes_, map_);
+  mesh_.BuildMatrixGraph(map_, jac_graph_);
+#ifdef DAVINCI_VERBOSE
+  *out_ << "PDEModel::CreateMapAndJacobianGraph(): "
+        << "Tpetra map and Jacobian graph generated.\n";
+#endif
+}
+//==============================================================================
+#if 0
+template<typename MeshT>
+void PDEModel<MeshT>::InitializeEquationSet(ParameterList& p) {
   typedef typename MeshT::elem_idx_type_ elem_idx_type;
   elem_idx_type num_elems = mesh_.get_num_elems();
   int batch_size = p.get("Batch Size", num_elems);
@@ -32,5 +59,5 @@ void PDEModel<MeshT,Equation>::InitializeEquationSet(ParameterList& p) {
   //ArrayRCP<Equation>::iterator set_it;
   //for (set_it = work_set_.begin(); set_it != work_set.end(); set_it++)
 }
-
+#endif
 } // namespace davinci

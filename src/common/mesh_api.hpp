@@ -10,9 +10,11 @@
 #include "Teuchos_ParameterList.hpp"
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_ArrayRCPDecl.hpp"
+#include "Intrepid_Basis.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "Tpetra_BlockMap.hpp"
 #include "Tpetra_BlockCrsGraph_decl.hpp"
+#include "work_set.hpp"
 
 namespace davinci {
 
@@ -20,6 +22,7 @@ using Teuchos::ParameterList;
 using Teuchos::RCP;
 using Teuchos::ArrayRCP;
 using Intrepid::FieldContainer;
+using Intrepid::Basis;
 using Tpetra::BlockMap;
 using Tpetra::BlockCrsGraph;
 
@@ -47,6 +50,7 @@ class MeshAPI {
   // convenience typedefs
   typedef LocalIndexT LocIdxT;
   typedef GlobalIndexT GlbIdxT;
+  typedef Intrepid::Basis<double, FieldContainer<double> > BasisT;
   
   /*!
    * \brief virtual to ensure correct memory management in derived classes
@@ -76,6 +80,17 @@ class MeshAPI {
   virtual void BuildMatrixGraph(
       const RCP<const BlockMap<LocIdxT, GlbIdxT> >& map,
       RCP<BlockCrsGraph<LocIdxT, GlbIdxT> >& jac_graph) const = 0;
+
+  /*!
+   * \brief creates worksets corresponding to element topologies on mesh
+   * \param[in] num_pdes - number of PDEs (required for static AD definition)
+   * \param[out] workset - array of WorkSet base class
+   *
+   * Creates WorkSet objects for use in building the linear system that solves a
+   * PDE; thus, the solution scalar type is set to an Sacado AD type.
+   */
+  virtual void BuildLinearSystemWorkSets(
+      const int& num_pdes, RCP<BasisT>& workset) const = 0;
   
   /*!
    * \brief access to the number of nodes; local to this process if parallel

@@ -8,6 +8,7 @@
 #include "Teuchos_DefaultComm.hpp"
 #include "Teuchos_GlobalMPISession.hpp"
 #include "Teuchos_Time.hpp"
+
 #include "Intrepid_FieldContainer.hpp"
 #include "Tpetra_DefaultPlatform.hpp"
 #include "Tpetra_BlockMap.hpp"
@@ -80,6 +81,24 @@ BOOST_AUTO_TEST_CASE(BuildMatrixGraph) {
   RCP<Tpetra::BlockCrsGraph<int,int> > jac_graph;
   Mesh.BuildMatrixGraph(map, jac_graph);
   BOOST_CHECK_EQUAL(jac_graph->getNodeNumBlockEntries(), 41);
+}
+
+BOOST_AUTO_TEST_CASE(BuildLinearSystemWorkSets) {
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  SimpleMesh Mesh(std::cout, comm);
+  double Lx = 1.0, Ly = 1.0;
+  int Nx = 10, Ny = 10;
+  Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
+  typedef Intrepid::Basis<double, Intrepid::FieldContainer<double> > BasisT;
+  RCP<BasisT> workset;
+  const int num_pdes = 1;
+  Mesh.BuildLinearSystemWorkSets(num_pdes, workset);
+  //workset->DefineCubature(2);
+  //workset->EvaluateBasis();
 }
 
 BOOST_AUTO_TEST_CASE(ElemToNode) {

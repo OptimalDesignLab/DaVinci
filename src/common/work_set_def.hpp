@@ -54,7 +54,7 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::DefineCubature(
   cub_weights_.resize(num_cub_points_);
   cub->getCubature(cub_points_, cub_weights_);
 #ifdef DAVINCI_VERBOSE
-  *out_ << "WorkSet::SetCubature:\n";
+  *out_ << "WorkSet::SetCubature():\n";
   for (int i=0; i<num_cub_points_; i++)
     *out_ << "\tcubature point " << i << ": (" << cub_points_(i,0) << ","
           << cub_points_(i,1) << ") : weight = " << cub_weights_(i) << "\n";
@@ -64,7 +64,7 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::DefineCubature(
 template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
 void WorkSet<NodeT,ScalarT,MeshT,BasisT>::EvaluateBasis() {
 #ifdef DAVINCI_VERBOSE
-  *out_ << "WorkSet::DefineBasis: evaluating basis on reference element\n";
+  *out_ << "WorkSet::DefineBasis(): evaluating basis on reference element\n";
 #endif
   vals_.resize(num_ref_basis_, num_cub_points_);
   grads_.resize(num_ref_basis_, num_cub_points_, dim_);
@@ -77,7 +77,7 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::DefineEvaluators(
     const std::list<Evaluator<NodeT,ScalarT>* >& evaluators) {
   BOOST_ASSERT_MSG(evaluators.size() > 0, "list of evaluators cannot be empty");
 #ifdef DAVINCI_VERBOSE
-  *out_ << "WorkSet::DefineEvaluators: setting list of evaluators\n";
+  *out_ << "WorkSet::DefineEvaluators(): setting list of evaluators\n";
 #endif
   //    const ArrayRCP<Evaluator<NodeT,ScalarT> >& evaluators) {
   //  typename ArrayRCP<Evaluator<NodeT,ScalarT> >::iterator it;
@@ -96,7 +96,7 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::ResizeSets(
   BOOST_ASSERT_MSG(num_elems_per_set > 0 && num_elems_per_set <= total_elems,
                    "num_elems_per_set must be > 0 and < total_elems");
 #ifdef DAVINCI_VERBOSE
-  *out_ << "WorkSet::ResizeSets: defining workset and evaluator dimensions\n";
+  *out_ << "WorkSet::ResizeSets(): defining workset and evaluator dimensions\n";
 #endif
   num_pdes_ = num_pdes;
   // determine the number of sets and the remainder set size
@@ -212,7 +212,7 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::BuildSystem(
     const MeshT& mesh, const RCP<const VectorT>& sol,
     const RCP<VectorT>& rhs, const RCP<MatrixT>& jacobian) {
 #ifdef DAVINCI_VERBOSE
-  *out_ << "WorkSet::BuildSystem: creating linear system\n\n";
+  *out_ << "WorkSet::BuildSystem(): creating linear system\n\n";
 #endif
   // get some views of the Tpetra objects
   ArrayRCP<const double> sol_view = sol->get1dView(); //sol->getData();

@@ -7,7 +7,10 @@
 #include <string>
 #include <boost/assert.hpp>
 #include "Teuchos_Tuple.hpp"
+#include "Intrepid_HGRAD_TRI_C1_FEM.hpp"
 #include "simple_mesh.hpp"
+#include "Sacado_Fad_SFad.hpp"
+#include "work_set.hpp"
 
 namespace davinci {
 //==============================================================================
@@ -21,14 +24,14 @@ SimpleMesh::SimpleMesh(ostream & out, const RCP<const Comm<int> >& comm) :
 //==============================================================================
 void SimpleMesh::Initialize(ParameterList& p) {
 #ifdef DAVINCI_VERBOSE
-  *out_ << "SimpleMesh: initializing the mesh\n";
+  *out_ << "SimpleMesh::Initialize(): initializing the mesh\n";
 #endif
   
   if (p.get<std::string>("Mesh Type") == "Rectangular") {
     BuildRectangularMesh(p.get("Lx", 1.0), p.get("Ly", 1.0),
                          p.get("Nx", 2), p.get("Ny", 2));
   } else {
-    *out_ << "Error in SimpleMesh::Initialize: "
+    *out_ << "Error in SimpleMesh::Initialize(): "
           << "invalid Mesh Type in parameterlist.\n";
   }
 }
@@ -42,7 +45,7 @@ void SimpleMesh::BuildRectangularMesh(const double& Lx, const double& Ly,
   num_elems_ = 2*Nx*Ny;
   num_nodes_ = (Nx+1)*(Ny+1);
 #ifdef DAVINCI_VERBOSE
-  *out_ << "Generating triangular mesh on rectangular domain... \n\n";
+  *out_ << "SimpleMesh::BuildRectangularMesh():\n\n";
   *out_ << "   Nx" << "   Ny\n";
   *out_ << std::setw(5) << Nx << std::setw(5) << Ny <<"\n\n";
   *out_ << " Number of Elements: " << num_elems_ << " \n";
@@ -97,14 +100,14 @@ void SimpleMesh::BuildTpetraMap(const int& num_pdes,
   BOOST_ASSERT_MSG(index_.size() > 0, "Mesh must be initialized");
   BOOST_ASSERT_MSG(comm_->getSize() == 1, "Not generalized for parallel yet");
 #ifdef DAVINCI_VERBOSE
-  *out_ << "SimpleMesh: creating Tpetra Map\n";
+  *out_ << "SimpleMesh::BuildTpetraMap(): creating Tpetra Map\n";
 #endif
   //map = Tpetra::createContigMap<LocIdxT,GlbIdxT>(-1, num_nodes_, comm_);
   GlbIdxT index_base = 0;
   map = Teuchos::rcp(new BlockMap<LocIdxT,GlbIdxT>(-1, num_nodes_, num_pdes,
                                                    index_base, comm_));
 #ifdef DAVINCI_VERBOSE
-  *out_ << "SimpleMesh: total number of nodes (global) = "
+  *out_ << "SimpleMesh::BuildTpetraMap(): total number of nodes (global) = "
         << map->getGlobalNumBlocks() << "\n";
 #endif
 }
@@ -115,7 +118,7 @@ void SimpleMesh::BuildMatrixGraph(
   BOOST_ASSERT_MSG(index_.size() > 0, "Mesh must be initialized");
   BOOST_ASSERT_MSG(comm_->getSize() == 1, "Not generalized for parallel yet");
 #ifdef DAVINCI_VERBOSE
-  *out_ << "SimpleMesh: creating Graph for Jacobian\n";
+  *out_ << "SimpleMesh::BuildMatrixGraph(): creating Graph for Jacobian\n";
 #endif
   const int max_entries_per_row = 7; // this should be based on topology
   jac_graph = Teuchos::rcp(new BlockCrsGraph<LocIdxT,GlbIdxT>(
@@ -134,6 +137,29 @@ void SimpleMesh::BuildMatrixGraph(
 #ifdef DAVINCI_VERBOSE
   //jac_graph->print(*out_); // currently not supported for BlockGraphs
 #endif
+}
+//==============================================================================
+void SimpleMesh::BuildLinearSystemWorkSets(
+    const int& num_pdes, RCP<BasisT>& workset) const {
+  BOOST_ASSERT_MSG(num_pdes > 0, "number of PDEs must be positive");
+  //workset.clear();
+  // SimpleMesh always uses Triangles, but more general Mesh interfaces will
+  // need a case statement or conditional for each toplology;
+  
+  typedef Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >
+      TriBasis;
+  switch (num_pdes) {
+    case (1):
+      typedef Sacado::Fad::SFad<double,3> ADType;
+      workset = Teuchos::rcp(
+          new WorkSet<double,ADType,SimpleMesh,TriBasis>(*out_));
+      break;
+    default:
+      *out_ << "SimpleMesh::BuildWorkSets(): not yet generalized for num_pdes = "
+            << num_pdes << "\n";
+      throw(-1);
+      break;
+  }
 }
 //==============================================================================
 void SimpleMesh::CopyElemNodeCoords(ArrayRCP<double>& node_coords,

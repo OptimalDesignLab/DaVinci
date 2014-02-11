@@ -13,6 +13,8 @@
 #include "Shards_CellTopologyData.h"
 #include "Intrepid_FieldContainer.hpp"
 #include "Intrepid_Basis.hpp"
+#include "Tpetra_BlockMultiVector_decl.hpp"
+#include "Tpetra_VbrMatrix.hpp"
 #include "evaluator.hpp"
 
 namespace davinci {
@@ -84,6 +86,9 @@ class WorkSet : public BasisT {
   /*!
    * \brief sets the evaluators that define the problem on this workset
    * \param[in] evaluators - a list of evaluators
+   *
+   * \todo pass in an evaluator factory instead, since then we can hide the
+   * template parameters NodeT and ScalarT.
    */
   void DefineEvaluators(
       const std::list<Evaluator<NodeT,ScalarT>* >& evaluators);

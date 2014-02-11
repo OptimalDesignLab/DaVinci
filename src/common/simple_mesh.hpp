@@ -88,6 +88,17 @@ class SimpleMesh : public MeshAPI<int,int> {
   void BuildMatrixGraph(
       const RCP<const BlockMap<LocIdxT,GlbIdxT> >& map,
       RCP<BlockCrsGraph<LocIdxT,GlbIdxT> >& jac_graph) const;
+
+  /*!
+   * \brief creates worksets corresponding to element topologies on mesh
+   * \param[in] num_pdes - number of PDEs (required for static AD definition)
+   * \param[out] workset - array of WorkSet base class
+   *
+   * Creates WorkSet objects for use in building the linear system that solves a
+   * PDE; thus, the solution scalar type is set to an Sacado AD type.
+   */
+  void BuildLinearSystemWorkSets(const int& num_pdes,
+                                 RCP<BasisT>& workset) const;
   
   /*!
    * \brief Maps a reference node index in a given element to its global index

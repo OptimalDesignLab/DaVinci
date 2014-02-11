@@ -1,6 +1,6 @@
 /**
  * \file work_set_test.cpp
- * \brief unit test for the WorkSet<NodeT,ScalarT,MeshT> class
+ * \brief unit test for the WorkSet<NodeT,ScalarT,MeshT,BasisT> class
  * \author Jason Hicken <jason.hicken@gmail.com>
  */
 
@@ -11,7 +11,7 @@
 #include "Teuchos_Time.hpp"
 #include "Shards_CellTopology.hpp"
 #include "Shards_CellTopologyData.h"
-#include "Intrepid_HGRAD_HEX_C1_FEM.hpp"
+//#include "Intrepid_HGRAD_HEX_C1_FEM.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "Tpetra_DefaultPlatform.hpp"
 #include "Tpetra_BlockMultiVector_decl.hpp"
