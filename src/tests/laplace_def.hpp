@@ -10,13 +10,12 @@
 #include "Intrepid_FunctionSpaceTools.hpp"
 #include "Shards_CellTopology.hpp"
 #include "Shards_CellTopologyData.h"
+#include "metric_jacobian.hpp"
 
 namespace davinci {
 //==============================================================================
 template <typename NodeT, typename ScalarT>
-Laplace<NodeT,ScalarT>::Laplace() {
-
-}
+Laplace<NodeT,ScalarT>::Laplace() {}
 //==============================================================================
 template <typename NodeT, typename ScalarT>
 void Laplace<NodeT,ScalarT>::MemoryRequired(
@@ -96,4 +95,12 @@ void Laplace<NodeT,ScalarT>::Evaluate(
                          Intrepid::COMP_BLAS);
 }
 //==============================================================================
+template <typename MeshT> template <typename NodeT, typename ScalarT>
+void LaplaceFactory<MeshT>::CreateEvaluators(
+    Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators) const {
+  evaluators.clear();
+  evaluators.push_back(Teuchos::rcp(new MetricJacobian<NodeT,ScalarT>()));
+  evaluators.push_back(Teuchos::rcp(new Laplace<NodeT,ScalarT>()));
 }
+//==============================================================================
+} // namespace davinci

@@ -145,7 +145,21 @@ void SimpleMesh::BuildLinearSystemWorkSets(
   //workset.clear();
   // SimpleMesh always uses Triangles, but more general Mesh interfaces will
   // need a case statement or conditional for each toplology;
-  
+
+#if 0
+  // put this in an EvaluatorFactory class (LaplaceFactory)
+  // input is a list of volume element types from mesh
+  // element types defined from Shards
+  switch (num_elem_nodes) {// or switch (sacado element type)
+    case (3):
+      typedef Sacado::Fad::SFad<double,3*num_pdes> ADType;
+      typedef Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >
+          BasisType;
+      // make the list of evaluators based on ADType
+      new WorkSet<double,ADType,SimpleMesh,BasisType>(*out_, evals);
+  }
+
+      
   typedef Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >
       TriBasis;
   switch (num_pdes) {
@@ -160,6 +174,7 @@ void SimpleMesh::BuildLinearSystemWorkSets(
       throw(-1);
       break;
   }
+#endif
 }
 //==============================================================================
 void SimpleMesh::CopyElemNodeCoords(ArrayRCP<double>& node_coords,

@@ -25,9 +25,11 @@
 
 using Teuchos::GlobalMPISession;
 using Teuchos::RCP;
+using Teuchos::Array;
 using Teuchos::ParameterList;
 using Teuchos::Comm;
 using Teuchos::DefaultComm;
+using Intrepid::Basis;
 using Intrepid::FieldContainer;
 using davinci::WorkSet;
 using davinci::SimpleMesh;
@@ -37,51 +39,68 @@ using davinci::Laplace;
 
 typedef Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >
 TriBasis;
+typedef RCP<Basis<double, FieldContainer<double> > > BasisRCP;
 typedef Tpetra::BlockMultiVector<double,int,int> Vector;
 typedef Tpetra::VbrMatrix<double,int,int> Matrix;
 typedef Tpetra::BlockMap<int,int> Map;
+const int num_pdes = 1;
+typedef Sacado::Fad::SFad<double,3*num_pdes> ADType;
 //typedef Tpetra::BlockMap<int,int> BlockMap;
 
 BOOST_AUTO_TEST_SUITE(WorkSet_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
+  BasisRCP basis = Teuchos::rcp(new TriBasis());
+  WorkSet<double,ADType,SimpleMesh> MyWorkSet(basis, std::cout);
 }
 
 BOOST_AUTO_TEST_CASE(Cubature) {
-  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
+  BasisRCP basis = Teuchos::rcp(new TriBasis());
+  WorkSet<double,ADType,SimpleMesh> MyWorkSet(basis, std::cout);
   for (int deg = 1; deg < 10; deg++)
     MyWorkSet.DefineCubature(deg);
 }
 
 BOOST_AUTO_TEST_CASE(EvaluateBasis) {
-  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
+  BasisRCP basis = Teuchos::rcp(new TriBasis());
+  WorkSet<double,ADType,SimpleMesh> MyWorkSet(basis, std::cout);
   int deg = 2;
   MyWorkSet.DefineCubature(deg);
   MyWorkSet.EvaluateBasis();
 }
 
 BOOST_AUTO_TEST_CASE(Evaluators) {
-  typedef double ScalarT;
+  typedef ADType ScalarT;
   typedef double NodeT;
-  WorkSet<NodeT,ScalarT,SimpleMesh,TriBasis> MyWorkSet(std::cout);
-  std::list<Evaluator<NodeT,ScalarT>* > evaluators;
-  evaluators.push_back(new MetricJacobian<NodeT,ScalarT>());
-  evaluators.push_back(new Laplace<NodeT,ScalarT>());
+  BasisRCP basis = Teuchos::rcp(new TriBasis());
+  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(basis, std::cout);
+  Array<RCP<Evaluator<NodeT,ScalarT> > > evaluators;
+  evaluators.push_back(Teuchos::rcp(new MetricJacobian<NodeT,ScalarT>()));
+  evaluators.push_back(Teuchos::rcp(new Laplace<NodeT,ScalarT>()));
   MyWorkSet.DefineEvaluators(evaluators);
 }
 
+BOOST_AUTO_TEST_CASE(Constructor_with_Evaluators) {
+  typedef ADType ScalarT;
+  typedef double NodeT;
+  Array<RCP<Evaluator<NodeT,ScalarT> > > evaluators;
+  evaluators.push_back(Teuchos::rcp(new MetricJacobian<NodeT,ScalarT>()));
+  evaluators.push_back(Teuchos::rcp(new Laplace<NodeT,ScalarT>()));
+  BasisRCP basis = Teuchos::rcp(new TriBasis());
+  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(basis, evaluators, std::cout);
+}
+
 BOOST_AUTO_TEST_CASE(ResizeSets) {
-  WorkSet<double,double,SimpleMesh,TriBasis> MyWorkSet(std::cout);
+  BasisRCP basis = Teuchos::rcp(new TriBasis());
+  WorkSet<double,ADType,SimpleMesh> MyWorkSet(basis, std::cout);
   int degree = 2;
   MyWorkSet.DefineCubature(degree);
   MyWorkSet.EvaluateBasis();
 
-  std::list<Evaluator<double,double>* > evaluators;
-  evaluators.push_back(new MetricJacobian<double,double>());
-  evaluators.push_back(new Laplace<double,double>());
+  Array<RCP<Evaluator<double,ADType> > > evaluators;
+  evaluators.push_back(Teuchos::rcp(new MetricJacobian<double,ADType>()));
+  evaluators.push_back(Teuchos::rcp(new Laplace<double,ADType>()));
   MyWorkSet.DefineEvaluators(evaluators);
-  int num_pdes = 1;
   int total_elems = 100;
   for (int nelems = 1; nelems <= total_elems; nelems++)
     MyWorkSet.ResizeSets(num_pdes, total_elems, nelems);
@@ -111,20 +130,19 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
 
   // Use mesh to create Tpetra map and graph
   RCP<const Tpetra::BlockMap<SimpleMesh::LocIdxT,SimpleMesh::GlbIdxT> > map;
-  const int num_pdes = 1;
   Mesh.BuildTpetraMap(num_pdes, map);
   RCP<Tpetra::BlockCrsGraph<int,int> > jac_graph;
   Mesh.BuildMatrixGraph(map, jac_graph);
   
   // Create a Workset for the Laplace PDE
-  typedef Sacado::Fad::SFad<double,3*num_pdes> ADType;
-  WorkSet<double,ADType,SimpleMesh,TriBasis> MyWorkSet(out);
+  BasisRCP basis = Teuchos::rcp(new TriBasis());
+  WorkSet<double,ADType,SimpleMesh> MyWorkSet(basis, out);
   int degree = 2;
   MyWorkSet.DefineCubature(degree);
   MyWorkSet.EvaluateBasis();
-  std::list<Evaluator<double,ADType>* > evaluators;
-  evaluators.push_back(new MetricJacobian<double,ADType>());
-  evaluators.push_back(new Laplace<double,ADType>());
+  Array<RCP<Evaluator<double,ADType> > > evaluators;
+  evaluators.push_back(Teuchos::rcp(new MetricJacobian<double,ADType>()));
+  evaluators.push_back(Teuchos::rcp(new Laplace<double,ADType>()));
   MyWorkSet.DefineEvaluators(evaluators);
   int total_elems = Mesh.get_num_elems();
   //int nelems = 10;

@@ -28,7 +28,7 @@ using shards::CellTopology;
 
 /*!
  * \class Evaluator
- * \brief an abstract bass class for using data arrays to evaluate something
+ * \brief an abstract base class for using data arrays to evaluate something
  * \tparam NodeT - the scalar type for node-based data (double, sacado AD, etc)
  * \tparam ScalarT - the scalar type for sol-based data (double, sacado AD, etc)
  *
@@ -56,10 +56,10 @@ class Evaluator {
    * 
    * A meta-template conditional determines which type to use for fields that
    * are composed of both solution-type (ScalarT) and mesh-type (NodeT) data;
-   * for example, the gradient of the solution.  We always want to use an AD
-   * type if either of ScalarT or NodeT is an AD type.  The approach implemented
-   * here is not very general: basically, we check the size of the type, and
-   * assume that AD types will be larger.
+   * for example, the gradient (du/dx,du/dy,du/dz) of the solution.  We always
+   * want to use an AD type if either of ScalarT or NodeT is an AD type.  The
+   * approach implemented here is not very general: basically, we check the size
+   * of the type, and assume that AD types will be larger.
    */
   typedef typename boost::mpl::if_c< (sizeof(NodeT) <= sizeof(ScalarT)),
     ScalarT, NodeT>::type ResidT;
@@ -67,7 +67,7 @@ class Evaluator {
   /*!
    * \brief default constructor that defines the output and input dependencies
    */
-  Evaluator() {}
+  Evaluator() {}  
 
   /*!
    * \brief defines the dimensions required for loops and arrary allocation

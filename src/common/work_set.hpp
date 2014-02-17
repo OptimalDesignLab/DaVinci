@@ -8,6 +8,7 @@
 #define DAVINCI_SRC_COMMON_WORK_SET_HPP
 
 #include "Teuchos_RCP.hpp"
+#include "Teuchos_Array.hpp"
 #include "Teuchos_ArrayRCPDecl.hpp"
 #include "Shards_CellTopology.hpp"
 #include "Shards_CellTopologyData.h"
@@ -21,10 +22,94 @@ namespace davinci {
 
 using std::ostream;
 using Teuchos::RCP;
+using Teuchos::Array;
 using Teuchos::ArrayRCP;
 using shards::CellTopology;
 using Intrepid::FieldContainer;
 using Intrepid::Basis;
+
+/*!
+ * \class WorkSetBase
+ * \brief an abstract base class for WorkSets
+ * \tparam MeshT - a generic class of mesh
+ *
+ * Although WorkSets are effectively the same functionally, they are different
+ * in terms of their type.  Consequently, we need a common base class that we
+ * can use to create an array of pointers to WorkSets.
+ */
+template <typename MeshT>
+class WorkSetBase {
+ public:
+  /*!
+   * \typedef VectorT
+   * \brief linear algebra vector for system
+   */
+  typedef typename Tpetra::BlockMultiVector<
+    double, typename MeshT::LocIdxT, typename MeshT::GlbIdxT> VectorT;
+
+  /*!
+   * \typedef MatrixT
+   * \brief linear algebra matrix for system
+   */
+  typedef typename Tpetra::VbrMatrix<
+    double, typename MeshT::LocIdxT, typename MeshT::GlbIdxT> MatrixT;
+  
+  /*!
+   * \brief sets the cubature points and weights based on degree and topology
+   * \param[in] degree - highest polynomial degree cubature is exact
+   */
+  virtual void DefineCubature(const int& degree) = 0;
+
+  /*!
+   * \brief evaluates the basis and its derivatives at the cubature points
+   */
+  virtual void EvaluateBasis() = 0;
+  
+  /*!
+   * \brief defines the size of the worksets
+   * \param[in] num_pdes - number of PDEs = number of unknowns per DoF
+   * \param[in] total_elems - total number of elements over all sets
+   * \param[in] num_elems_per_set - number of elements in each work set
+   */
+  virtual void ResizeSets(const int& num_pdes, const int& total_elems,
+                          const int& num_elems_per_set) = 0;
+
+  /*!
+   * \brief copies the solution from a linear algebra object into soln_data_
+   * \param[in] set_idx - index of the desired workset batch
+   * \param[in] sol - current solution vector
+   *
+   * \warning This is not general enough in its current form.  It assumes that
+   * the basis functions are 1-to-1 with the mesh nodes (and have the same local
+   * index)
+   */
+  virtual void CopySolution(const int& set_idx,
+                            const ArrayRCP<const double>& sol) = 0;
+
+  /*!
+   * \brief uses resid_data_ to fill in the linear-system objects
+   * \param[in] set_idx - index of the desired workset batch
+   * \param[in,out] rhs - the right-hand-side vector (view of a Tpetra vector)
+   * \param[in,out] jacobian - the system matrix (view of a Tpetra matrix)
+   *
+   * \warning This is not general enough in its current form.  It assumes that
+   * the basis functions are 1-to-1 with the mesh nodes (and have the same local
+   * index)
+   */
+  virtual void Assemble(const int& set_idx, const ArrayRCP<double>& rhs,
+                        const RCP<MatrixT>& jacobian) = 0;
+  
+  /*!
+   * \brief fills the given stiffness matrix and right-hand-side vector
+   * \param[in] mesh - mesh object to reference physical node locations
+   * \param[in] sol - current solution vector (for nonlinear problems)
+   * \param[out] rhs - the system right-hand-side vector
+   * \param[out] jacobian - the system jacobian/stiffness matrix
+   */
+  virtual void BuildSystem(
+      const MeshT& mesh, const RCP<const VectorT>& sol,
+      const RCP<VectorT>& rhs, const RCP<MatrixT>& jacobian) = 0;
+};
 
 /*!
  * \class WorkSet
@@ -32,7 +117,6 @@ using Intrepid::Basis;
  * \tparam NodeT - the scalar type for node-based data (double, sacado AD, etc)
  * \tparam ScalarT - the scalar type for sol-based data (double, sacado AD, etc)
  * \tparam MeshT - a generic class of mesh
- * \tparam BasisT - an intrepid basis class
  *
  * A workset is used to evaluate residuals and Jacobians for a set of "elements"
  * with identical topology and basis function.  The Jacobians may be with
@@ -42,8 +126,8 @@ using Intrepid::Basis;
  * example, we may use a WorkSet for volume integrals in the semi-linear form,
  * and a separate WorkSet for surface integrals.
  */
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-class WorkSet : public BasisT {
+template <typename NodeT, typename ScalarT, typename MeshT>
+class WorkSet : public WorkSetBase<MeshT> {
  public:
   
   /*!
@@ -68,9 +152,21 @@ class WorkSet : public BasisT {
   
   /*!
    * \brief constructor
+   * \param[in] basis - the desired basis for the elements
    * \param[in] out - a valid output stream
    */
-  WorkSet(ostream& out);
+  WorkSet(const RCP<const Basis<double, FieldContainer<double> > >& basis,
+          ostream& out = std::cout);
+
+  /*!
+   * \brief constructor that defines the Evaluators
+   * \param[in] basis - the desired basis for the elements
+   * \param[in] evaluators - a list of evaluators
+   * \param[in] out - a valid output stream
+   */
+  WorkSet(const RCP<const Basis<double, FieldContainer<double> > >& basis,
+          const Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators,
+          ostream& out = std::cout);
   
   /*!
    * \brief sets the cubature points and weights based on degree and topology
@@ -85,13 +181,13 @@ class WorkSet : public BasisT {
 
   /*!
    * \brief sets the evaluators that define the problem on this workset
-   * \param[in] evaluators - a list of evaluators
+   * \param[in] evaluators - a list of (RCP to) evaluators
    *
    * \todo pass in an evaluator factory instead, since then we can hide the
    * template parameters NodeT and ScalarT.
    */
   void DefineEvaluators(
-      const std::list<Evaluator<NodeT,ScalarT>* >& evaluators);
+      const Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators);
   
   /*!
    * \brief defines the size of the worksets
@@ -147,7 +243,8 @@ class WorkSet : public BasisT {
   int num_cub_points_; ///< number of cubature points
   int num_ref_basis_; ///< number of basis functions on the reference element
   RCP<ostream> out_; ///< output stream
-  std::list<Evaluator<NodeT,ScalarT>* > evaluators_; ///< graph of the evaluators 
+  RCP<const Basis<double, FieldContainer<double> > > basis_; ///< Intrepid basis
+  Array<RCP<Evaluator<NodeT,ScalarT> > > evaluators_; ///< evaluators 
   FieldContainer<double> cub_points_; ///< cubature point locations
   FieldContainer<double> cub_weights_; ///< cubature weights
   FieldContainer<double> vals_; ///< basis values at cub points on ref element

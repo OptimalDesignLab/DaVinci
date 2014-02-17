@@ -1,6 +1,6 @@
 /**
  * \file laplace.hpp
- * \brief class declaration for Laplace evaluator
+ * \brief class declaration for Laplace evaluator and Factory
  * \author Jason Hicken <jason.hicken@gmail.com>
  */
 
@@ -8,14 +8,17 @@
 #define DAVINCI_SRC_COMMON_LAPLACE_HPP
 
 #include "Teuchos_RCP.hpp"
+#include "Teuchos_Array.hpp"
 #include "Teuchos_ArrayRCPDecl.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "evaluator.hpp"
+#include "work_set_factory.hpp"
 
 namespace davinci {
 
 using std::ostream;
 using Teuchos::RCP;
+using Teuchos::Array;
 using Teuchos::ArrayRCP;
 using Intrepid::FieldContainer;
 
@@ -107,6 +110,26 @@ class Laplace : public Evaluator<NodeT,ScalarT> {
   RCP<FieldContainer<NodeT> > grads_transformed_weighted_; ///< weighed by cub.
   RCP<FieldContainer<ResidT> > solution_grad_; ///< gradient of solution at cub.
   RCP<FieldContainer<ResidT> > residual_; ///< residual over workset
+};
+
+/*!
+ * \class LaplaceFactory
+ * \brief a WorkSetFactory for the Laplace PDE
+ * \tparam MeshT - a generic class of mesh
+ */
+template <typename MeshT>
+class LaplaceFactory : public WorkSetFactoryBase<MeshT> {
+ public:
+  typedef MeshT MeshType; ///< this typedef is needed by WorkSetFactory
+ protected:
+  static const int num_pdes_ = 1; ///< number of PDEs, or number of variables
+  /*!
+   * \brief Generates the list of evaluators needed by the PDE
+   * \param[out] evaluators - list of evaluators
+   */
+  template <typename NodeT, typename ScalarT>
+  void CreateEvaluators(
+      Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators) const;
 };
 
 } // namespace davinci

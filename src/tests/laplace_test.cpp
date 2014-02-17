@@ -1,24 +1,34 @@
 /**
  * \file laplace_test.cpp
- * \brief unit test for the Laplace class
+ * \brief unit test for the Laplace and LaplaceFactory classes
  * \author Jason Hicken <jason.hicken@gmail.com>
  */
 
 #include <boost/test/unit_test.hpp>
 #include "Teuchos_RCP.hpp"
+#include "Teuchos_Array.hpp"
 #include "Shards_CellTopology.hpp"
 #include "Shards_CellTopologyData.h"
+#include "Intrepid_Basis.hpp"
 #include "Intrepid_FieldContainer.hpp"
 #include "Intrepid_DefaultCubatureFactory.hpp"
 #include "metric_jacobian.hpp"
 #include "laplace.hpp"
+#include "work_set.hpp"
+#include "simple_mesh.hpp"
 
 using Teuchos::RCP;
 using Intrepid::CellTools;
+using Intrepid::Basis;
 using Intrepid::FieldContainer;
 using davinci::Evaluator;
 using davinci::MetricJacobian;
 using davinci::Laplace;
+using davinci::SimpleMesh;
+using davinci::WorkSetBase;
+using davinci::WorkSetFactoryBase;
+using davinci::LaplaceFactory;
+using davinci::WorkSetFactory;
 
 BOOST_AUTO_TEST_SUITE(Laplace_suite)
 
@@ -67,7 +77,6 @@ BOOST_AUTO_TEST_CASE(MemoryRequired) {
                      num_elems*(num_cub_points*dim + num_ref_basis));
   BOOST_CHECK_EQUAL( soln_offset, 0);
 }
-
 
 BOOST_AUTO_TEST_CASE(SetDataView) {
   Evaluator<double,double>* laplace_pde = new Laplace<double,double>();
@@ -199,6 +208,15 @@ BOOST_AUTO_TEST_CASE(Evaluate) {
     BOOST_CHECK_CLOSE(resid_data[resid_map_offset.at("residual")
                                  + i*num_ref_basis + 2], 0.0, 1e-13);
   }
+}
+
+BOOST_AUTO_TEST_CASE(BuildLinearSystemWorkSet) {
+  RCP<WorkSetFactoryBase<SimpleMesh> > MyFactory = Teuchos::rcp(
+      new WorkSetFactory<LaplaceFactory<SimpleMesh> >);
+  RCP<const Basis<double, FieldContainer<double> > > basis = Teuchos::rcp(
+      new Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >);
+  Teuchos::Array<RCP<WorkSetBase<SimpleMesh> > > worksets;
+  MyFactory->BuildLinearSystemWorkSet(basis, worksets);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -43,4 +43,4 @@ RCP<FieldContainer<const T> > GenerateConstView(
       dimensions, data.persistingView(offset, size)));
 }
 //==============================================================================
-}
+} // namespace davinci

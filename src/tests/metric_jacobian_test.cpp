@@ -21,7 +21,7 @@ using davinci::MetricJacobian;
 BOOST_AUTO_TEST_SUITE(MetricJacobian_suite)
 
 BOOST_AUTO_TEST_CASE(Constructors) {
-  MetricJacobian<double,double> jacob();
+  MetricJacobian<double,double> jacob;
 }
 
 BOOST_AUTO_TEST_CASE(SetDimensions) {

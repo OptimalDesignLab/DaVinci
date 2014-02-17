@@ -17,10 +17,12 @@
 
 namespace davinci {
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-WorkSet<NodeT,ScalarT,MeshT,BasisT>::WorkSet(
+template <typename NodeT, typename ScalarT, typename MeshT>
+WorkSet<NodeT,ScalarT,MeshT>::WorkSet(
+    const RCP<const Basis<double, FieldContainer<double> > >& basis,
     ostream& out) : evaluators_() {
   out_ = Teuchos::rcp(&out, false);
+  basis_ = basis;
   // initialize sizes to -1 to avoid using uninitialized values accidentally
   dim_ = -1;
   cub_dim_ = -1;
@@ -28,17 +30,42 @@ WorkSet<NodeT,ScalarT,MeshT,BasisT>::WorkSet(
   num_elems_ = -1;
   num_sets_ = -1;
   // get basis and topology information
-  num_ref_basis_ = this->getCardinality();
-  num_nodes_per_elem_ = this->getBaseCellTopology().getNodeCount();
-  dim_ = this->getBaseCellTopology().getDimension();
+  num_ref_basis_ = basis_->getCardinality();
+  num_nodes_per_elem_ = basis_->getBaseCellTopology().getNodeCount();
+  dim_ = basis_->getBaseCellTopology().getDimension();
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::WorkSet(): constructed WorkSet object for "
-        << this->getBaseCellTopology().getName() << "\n";
+        << basis_->getBaseCellTopology().getName() << "\n";
 #endif
 }
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-void WorkSet<NodeT,ScalarT,MeshT,BasisT>::DefineCubature(
+template <typename NodeT, typename ScalarT, typename MeshT>
+WorkSet<NodeT,ScalarT,MeshT>::WorkSet(
+    const RCP<const Basis<double, FieldContainer<double> > >& basis,
+    const Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators,
+    ostream& out) {
+  out_ = Teuchos::rcp(&out, false);
+  basis_ = basis;
+  DefineEvaluators(evaluators);
+  // initialize sizes to -1 to avoid using uninitialized values accidentally
+  dim_ = -1;
+  cub_dim_ = -1;
+  num_cub_points_ = -1;
+  num_elems_ = -1;
+  num_sets_ = -1;
+  // get basis and topology information
+  num_ref_basis_ = basis_->getCardinality();
+  num_nodes_per_elem_ = basis_->getBaseCellTopology().getNodeCount();
+  dim_ = basis_->getBaseCellTopology().getDimension();
+#ifdef DAVINCI_VERBOSE
+  *out_ << "WorkSet::WorkSet(): constructed WorkSet object for "
+        << basis_->getBaseCellTopology().getName() << "\n";
+#endif
+}
+    
+//==============================================================================
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::DefineCubature(
     const int& degree) {
   BOOST_ASSERT_MSG(degree > 0 && degree < 10,
                    "cubature degree must be greater than 0 and less than 10");
@@ -47,7 +74,7 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::DefineCubature(
   using Intrepid::Cubature;
   DefaultCubatureFactory<double> cubFactory;
   Teuchos::RCP<Cubature<double> >
-      cub = cubFactory.create(this->getBaseCellTopology(), degree);
+      cub = cubFactory.create(basis_->getBaseCellTopology(), degree);
   cub_dim_ = cub->getDimension();
   num_cub_points_ = cub->getNumPoints();
   cub_points_.resize(num_cub_points_, cub_dim_);
@@ -61,35 +88,32 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::DefineCubature(
 #endif
 }
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-void WorkSet<NodeT,ScalarT,MeshT,BasisT>::EvaluateBasis() {
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::EvaluateBasis() {
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::DefineBasis(): evaluating basis on reference element\n";
 #endif
   vals_.resize(num_ref_basis_, num_cub_points_);
   grads_.resize(num_ref_basis_, num_cub_points_, dim_);
-  this->getValues(vals_, cub_points_, Intrepid::OPERATOR_VALUE);
-  this->getValues(grads_, cub_points_, Intrepid::OPERATOR_GRAD);
+  basis_->getValues(vals_, cub_points_, Intrepid::OPERATOR_VALUE);
+  basis_->getValues(grads_, cub_points_, Intrepid::OPERATOR_GRAD);
 }
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-void WorkSet<NodeT,ScalarT,MeshT,BasisT>::DefineEvaluators(
-    const std::list<Evaluator<NodeT,ScalarT>* >& evaluators) {
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::DefineEvaluators(
+    const Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators) {
   BOOST_ASSERT_MSG(evaluators.size() > 0, "list of evaluators cannot be empty");
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::DefineEvaluators(): setting list of evaluators\n";
 #endif
-  //    const ArrayRCP<Evaluator<NodeT,ScalarT> >& evaluators) {
-  //  typename ArrayRCP<Evaluator<NodeT,ScalarT> >::iterator it;
   evaluators_.clear();
-  typename std::list<Evaluator<NodeT,ScalarT>* >::const_iterator evali;
-  for (evali = evaluators.begin(); evali != evaluators.end(); ++evali) {
-    evaluators_.push_back(*evali);
-  }
+  typename Array<RCP<Evaluator<NodeT,ScalarT> > >::const_iterator evali;
+  for (evali = evaluators.begin(); evali != evaluators.end(); ++evali)
+    evaluators_.push_back(Teuchos::rcpCloneNode(*evali));
 }
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-void WorkSet<NodeT,ScalarT,MeshT,BasisT>::ResizeSets(
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(
     const int& num_pdes, const int& total_elems, const int& num_elems_per_set) {
   BOOST_ASSERT_MSG(num_pdes > 0, "num_pdes must be > 0");
   BOOST_ASSERT_MSG(total_elems > 0, "total_elems must be > 0");
@@ -105,12 +129,12 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::ResizeSets(
   num_sets_ = div_result.quot+1;
   rem_num_elems_ = div_result.rem+1;
   // set the dimensions of the Evaluators
-  typename std::list<Evaluator<NodeT,ScalarT>* >::iterator evali;
+  typename Array<RCP<Evaluator<NodeT,ScalarT> > >::iterator evali;
   for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
     (*evali)->SetDimensions(num_elems_, num_nodes_per_elem_, num_cub_points_,
                             num_ref_basis_, dim_, num_pdes_);
   // determine memory requirements
-  int num_nodes_per_elem = this->getBaseCellTopology().getNodeCount();
+  int num_nodes_per_elem = basis_->getBaseCellTopology().getNodeCount();
   int mesh_memory = num_elems_*num_nodes_per_elem*dim_; // for nodes
   int soln_memory = num_elems_*num_ref_basis_*num_pdes_; // for solution coeffs
   int resid_memory = 0;
@@ -133,14 +157,14 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::ResizeSets(
                            resid_data_, resid_map_offset_);
 }
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-void WorkSet<NodeT,ScalarT,MeshT,BasisT>::CopySolution(
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::CopySolution(
     const int& set_idx, const ArrayRCP<const double>& sol) {
   BOOST_ASSERT_MSG(num_ref_basis_ == num_nodes_per_elem_,
                    "presently, the basis size must equal the number of nodes");
 #ifdef DAVINCI_VERBOSE
   //*out_ << "WorkSet::CopySolution: reading solution into workset\n";
-#endif  
+#endif
   // copy the solution into the workset array
   int set_num_elems = num_elems_;
   if (set_idx == num_sets_-1) set_num_elems = rem_num_elems_;
@@ -158,8 +182,8 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::CopySolution(
       }
 }
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-void WorkSet<NodeT,ScalarT,MeshT,BasisT>::Assemble(
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::Assemble(
     const int& set_idx, const ArrayRCP<double>& rhs,
     const RCP<MatrixT>& jacobian) {
   BOOST_ASSERT_MSG(num_ref_basis_ == num_nodes_per_elem_,
@@ -207,8 +231,8 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::Assemble(
   }
 }
 //==============================================================================
-template <typename NodeT, typename ScalarT, typename MeshT, typename BasisT>
-void WorkSet<NodeT,ScalarT,MeshT,BasisT>::BuildSystem(
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::BuildSystem(
     const MeshT& mesh, const RCP<const VectorT>& sol,
     const RCP<VectorT>& rhs, const RCP<MatrixT>& jacobian) {
 #ifdef DAVINCI_VERBOSE
@@ -220,7 +244,7 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::BuildSystem(
 
   // loop over the workset batches
   int set_num_elems = num_elems_;
-  typename std::list<Evaluator<NodeT,ScalarT>* >::iterator evali;  
+  typename Array<RCP<Evaluator<NodeT,ScalarT> > >::iterator evali;  
   for (int set = 0; set < num_sets_; set++) {
     // store mesh node coords, dof indices, and solution in the appropriate
     // arrays
@@ -229,8 +253,8 @@ void WorkSet<NodeT,ScalarT,MeshT,BasisT>::BuildSystem(
     CopySolution(set, sol_view);
     // evaluate the necessary fields
     for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
-      (*evali)->Evaluate(this->getBaseCellTopology(), cub_points_, cub_weights_,
-                         vals_, grads_);
+      (*evali)->Evaluate(basis_->getBaseCellTopology(), cub_points_,
+                         cub_weights_, vals_, grads_);
     // insert data into matrix and rhs vector
     Assemble(set, rhs_view, jacobian);
   }
