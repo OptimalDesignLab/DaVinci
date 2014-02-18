@@ -87,15 +87,12 @@ class PDEModel : public Model {
    * \brief Uses the defined WorkSets to build the Jacobian and RHS
    */
   void BuildLinearSystem();
-  
+
   /*!
-   * \brief set topology, cubature, and allocate memory for equation sets
-   * \param[in] p - a list of options needed to initialize the equation sets
-   *
-   * By using a Teuchos::ParameterList, we can pass in very general information
-   * that can be used by the underlying Equation type
+   * \brief Solves the discretized PDE
+   * \todo presently assumes a linear problem, and no preconditioner is used
    */
-  //void InitializeEquationSet(ParameterList& p);
+  void Solve();
   
   /*!
    * \brief default destructor
@@ -106,9 +103,11 @@ class PDEModel : public Model {
   // convenience typedefs
   typedef typename MeshT::LocIdxT LocIdxT;
   typedef typename MeshT::GlbIdxT GlbIdxT;
-  typedef Intrepid::Basis<double, Intrepid::FieldContainer<double> > BasisT;
+  typedef Intrepid::Basis<double, Intrepid::FieldContainer<double> > BasisT;  
   typedef Tpetra::BlockMultiVector<double,LocIdxT,GlbIdxT> VectorT;
   typedef Tpetra::VbrMatrix<double,LocIdxT,GlbIdxT> MatrixT;
+  typedef Tpetra::MultiVector<double,LocIdxT,GlbIdxT> BaseVectorT;
+  typedef Tpetra::Operator<double,LocIdxT,GlbIdxT> BaseMatrixT;
 
   int num_pdes_; ///< number of PDEs (number variables per node)
   RCP<ostream> out_; ///< output stream
@@ -121,6 +120,11 @@ class PDEModel : public Model {
   RCP<VectorT> sol_; ///< solution stored as a Tpetra linear algebra object
   RCP<VectorT> rhs_; ///< linear-system right-hand-side
   RCP<MatrixT> jac_; ///< linear-system Jacobian matrix
+#if 0
+  RCP<BaseVectorT> sol_; ///< solution stored as a Tpetra linear algebra object
+  RCP<BaseVectorT> rhs_; ///< linear-system right-hand-side
+  RCP<BaseMatrixT> jac_; ///< linear-system Jacobian matrix
+#endif
 };
 
 } // namespace davinci

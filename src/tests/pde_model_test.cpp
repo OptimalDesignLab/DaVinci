@@ -155,5 +155,39 @@ BOOST_AUTO_TEST_CASE(BuildLinearSystem) {
   pde.BuildLinearSystem();
 }
 
+BOOST_AUTO_TEST_CASE(Solve) {
+  // create Teuchos communicator
+  GlobalMPISession(&boost::unit_test::framework::master_test_suite().argc,
+                   &boost::unit_test::framework::master_test_suite().argv,
+                   NULL);
+  RCP<const Comm<int> > comm =
+      Tpetra::DefaultPlatform::getDefaultPlatform().getComm();
+  // stream for output
+  const int myRank = comm->getRank();
+  const int numProcs = comm->getSize();
+  Teuchos::oblackholestream blackHole;
+  std::ostream& out = (comm->getRank() == 0) ? std::cout : blackHole;
+  // construct pde
+  PDEModel<SimpleMesh> pde(out, comm);
+  // initialize a rectangular mesh
+  ParameterList mesh_param;
+  mesh_param.set("Mesh Type","Rectangular");
+  mesh_param.set("Nx",10);
+  mesh_param.set("Ny",10);
+  pde.InitializeMesh(mesh_param);
+  // create a Laplace WorkSet factory and use it to create worksets
+  RCP<WorkSetFactoryBase<SimpleMesh> > MyFactory = Teuchos::rcp(
+      new WorkSetFactory<LaplaceFactory<SimpleMesh> >);
+  Teuchos::ParameterList options;
+  options.set("basis degree",1);
+  options.set("cub degree",2);
+  options.set("num elems per set", 10);
+  pde.CreateLinearSystemWorkSets(options, MyFactory);
+  // build the Laplace linear system
+  pde.CreateMapAndJacobianGraph();  
+  pde.BuildLinearSystem();
+  // solve the system
+  pde.Solve();
+}
   
 BOOST_AUTO_TEST_SUITE_END()
