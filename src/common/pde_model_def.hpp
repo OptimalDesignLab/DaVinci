@@ -44,36 +44,38 @@ void PDEModel<MeshT>::CreateMapAndJacobianGraph() {
 }
 //==============================================================================
 template<typename MeshT>
-void PDEModel<MeshT>::BuildLinearSystemWorkSets(
-    const RCP<WorkSetFactoryBase<MeshT> >& workset_factory,
-    const int& degree) {
-  BOOST_ASSERT_MSG(degree > 0, "polynomial degree must be positive");
+void PDEModel<MeshT>::CreateLinearSystemWorkSets(
+    ParameterList& options,
+    const RCP<WorkSetFactoryBase<MeshT> >& workset_factory) {
+  BOOST_ASSERT_MSG(options.isParameter("basis degree"),
+                   "[basis degree] must be defined in options");
+  options.set("num local elems", mesh_.get_num_elems());
+  set_num_pdes(workset_factory->NumPDEs());
   Array<RCP<const BasisT> > bases;
-  mesh_.GetIntrepidBases(degree, bases);
+  mesh_.GetIntrepidBases(options.get<int>("basis degree"), bases);
   Array<RCP<const BasisT> >::iterator it;
   for (it = bases.begin(); it != bases.end(); ++it) 
-    workset_factory->BuildLinearSystemWorkSet(*it, workset_);
+    workset_factory->BuildLinearSystemWorkSet(options, *it, workset_);
 #ifdef DAVINCI_VERBOSE
-  *out_ << "PDEModel::BuildLinearSystemWorkSets(): "
+  *out_ << "PDEModel::CreateLinearSystemWorkSets(): "
         << "WorkSet list created/appended to.\n";
 #endif
 }
 //==============================================================================
-#if 0
 template<typename MeshT>
-void PDEModel<MeshT>::InitializeEquationSet(ParameterList& p) {
-  typedef typename MeshT::elem_idx_type_ elem_idx_type;
-  elem_idx_type num_elems = mesh_.get_num_elems();
-  int batch_size = p.get("Batch Size", num_elems);
-  Teuchos::RCP<const CellTopologyData> cell(
-      p.get<const CellTopologyData*>("Topology"), false);
-  work_set_.DefineTopology(cell);
-  work_set_.DefineCubature(p.get<int>("Cubature Degree"));
-  typedef typename Equation::RealT ScalarT;
-  //work_set_.DefineBasis(*p.get("Basis"));
-  //work_set_.resize(num_sets_);
-  //ArrayRCP<Equation>::iterator set_it;
-  //for (set_it = work_set_.begin(); set_it != work_set.end(); set_it++)
-}
+void PDEModel<MeshT>::BuildLinearSystem() {
+  sol_ = rcp(new VectorT(map_,1));
+  sol_->putScalar(1.0);
+  rhs_ = rcp(new VectorT(map_,1));
+  jac_ = rcp(new MatrixT(jac_graph_));
+  jac_->fillComplete();
+  typename Array<RCP<WorkSetBase<MeshT> > >::iterator it;
+  for (it = workset_.begin(); it != workset_.end(); ++it)
+    (*it)->BuildSystem(mesh_, sol_, rhs_, jac_);
+#ifdef DAVINCI_VERBOSE
+  *out_ << "PDEModel::BuildLinearSystem(): "
+        << "system Jacobian and RHS generated.\n";
 #endif
+}
+//==============================================================================
 } // namespace davinci

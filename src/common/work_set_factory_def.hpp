@@ -11,21 +11,27 @@ namespace davinci {
 //template <typename MeshT, template <typename> class DerivedFactory>
 template <class DerivedFactory>
 void WorkSetFactory<DerivedFactory>::BuildLinearSystemWorkSet(
+    const ParameterList& p,
     const RCP<const Basis<double, FieldContainer<double> > >& basis, 
     Array<RCP<WorkSetBase<MeshT> > >& worksets) {
-
+  BOOST_ASSERT_MSG(p.isParameter("cub degree"),
+                   "[cub degree] must be defined in options");
+  BOOST_ASSERT_MSG(p.isParameter("num local elems"),
+                   "[num local elems] must be defined in options");
+  BOOST_ASSERT_MSG(p.isParameter("num elems per set"),
+                   "[num elems per set] must be defined in options");
+  
   // determine the number of AD dependent variables
-  const int num_autodiff_dep_vars = basis->getCardinality()*(
-      this->num_pdes_);
+  const int num_autodiff_dep_vars = basis->getCardinality()*this->NumPDEs();
   switch (num_autodiff_dep_vars) {
     case (2) : {
       // linear (p=1) line elements
       typedef double NodeT;
       typedef Sacado::Fad::SFad<double,2> ScalarT;
       Array<RCP<Evaluator<NodeT,ScalarT> > > evaluators;
-      DerivedFactory::template CreateEvaluators<NodeT,ScalarT>(evaluators);
+      DerivedFactory::template CreateEvaluators<NodeT,ScalarT>(p, evaluators);
       worksets.push_back(Teuchos::rcp(new WorkSet<NodeT,ScalarT,MeshT>(
-          basis, evaluators)));
+          basis, evaluators, this->NumPDEs())));
       break;
     }
     case (3) : {
@@ -33,9 +39,9 @@ void WorkSetFactory<DerivedFactory>::BuildLinearSystemWorkSet(
       typedef double NodeT;
       typedef Sacado::Fad::SFad<double,3> ScalarT;
       Array<RCP<Evaluator<NodeT,ScalarT> > > evaluators;
-      DerivedFactory::template CreateEvaluators<NodeT,ScalarT>(evaluators);
+      DerivedFactory::template CreateEvaluators<NodeT,ScalarT>(p, evaluators);
       worksets.push_back(Teuchos::rcp(new WorkSet<NodeT,ScalarT,MeshT>(
-          basis, evaluators)));
+          basis, evaluators, this->NumPDEs())));
       break;
     }
     default : {
@@ -45,6 +51,10 @@ void WorkSetFactory<DerivedFactory>::BuildLinearSystemWorkSet(
       throw(-1);
     }
   }
+  worksets.back()->DefineCubature(p.get<int>("cub degree"));
+  worksets.back()->EvaluateBasis();
+  worksets.back()->ResizeSets(p.get<int>("num local elems"),
+                              p.get<int>("num elems per set"));
 }
 //==============================================================================
 } // namespace davinci

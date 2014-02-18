@@ -121,15 +121,22 @@ template <typename MeshT>
 class LaplaceFactory : public WorkSetFactoryBase<MeshT> {
  public:
   typedef MeshT MeshType; ///< this typedef is needed by WorkSetFactory
+
+  /*!
+   * \brief the number of PDEs/dependent variables
+   */
+  int NumPDEs() const { return 1; }
+  
  protected:
-  static const int num_pdes_ = 1; ///< number of PDEs, or number of variables
   /*!
    * \brief Generates the list of evaluators needed by the PDE
+   * \param[in] p - a list of options needed to create the evaluators
    * \param[out] evaluators - list of evaluators
    */
   template <typename NodeT, typename ScalarT>
-  void CreateEvaluators(
-      Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators) const;
+  void CreateEvaluators(const ParameterList& p,
+                        Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators
+                        ) const;
 };
 
 } // namespace davinci

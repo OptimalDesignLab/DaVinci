@@ -7,6 +7,7 @@
 #ifndef DAVINCI_SRC_COMMON_WORKSET_FACTORY_HPP
 #define DAVINCI_SRC_COMMON_WORKSET_FACTORY_HPP
 
+#include "Teuchos_ParameterList.hpp"
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_Array.hpp"
 #include "Intrepid_FieldContainer.hpp"
@@ -15,6 +16,7 @@
 
 namespace davinci {
 
+using Teuchos::ParameterList;
 using Teuchos::RCP;
 using Teuchos::Array;
 using Intrepid::Basis;
@@ -41,12 +43,20 @@ using Intrepid::FieldContainer;
 template <typename MeshT>
 class WorkSetFactoryBase {
  public:
+  
+  /*!
+   * \brief the number of PDEs/dependent variables
+   */
+  virtual int NumPDEs() const = 0;
+
   /*!
    * \brief generates a workset of the appropriate type for PDE linear system
+   * \param[in] p - a list of options needed for the factory   
    * \param[in] basis - Intrepid basis type used to create WorkSet
    * \param[out] worksets - a list of WorkSets
    */
   virtual void BuildLinearSystemWorkSet(
+      const ParameterList& p,
       const RCP<const Basis<double, FieldContainer<double> > >& basis, 
       Array<RCP<WorkSetBase<MeshT> > >& worksets) {}
 };
@@ -56,15 +66,20 @@ template <class DerivedFactory>
 class WorkSetFactory : public DerivedFactory {
  public:
   typedef typename DerivedFactory::MeshType MeshT;
-  
+
   /*!
    * \brief generates a workset of the appropriate type for PDE linear system
+   * \param[in] p - a list of options needed for the factory   
    * \param[in] basis - Intrepid basis type used to create WorkSet
    * \param[out] worksets - a list of WorkSets
    */
   void BuildLinearSystemWorkSet(
+      const ParameterList& p,
       const RCP<const Basis<double, FieldContainer<double> > >& basis, 
       Array<RCP<WorkSetBase<MeshT> > >& worksets);
+
+ private:
+  
 };
 
 } // namespace davinci

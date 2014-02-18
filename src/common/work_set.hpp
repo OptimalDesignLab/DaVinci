@@ -64,6 +64,14 @@ class WorkSetBase {
    * \brief evaluates the basis and its derivatives at the cubature points
    */
   virtual void EvaluateBasis() = 0;
+
+  /*!
+   * \brief defines the size of the worksets
+   * \param[in] total_elems - total number of elements over all sets
+   * \param[in] num_elems_per_set - number of elements in each work set
+   */
+  virtual void ResizeSets(const int& total_elems, const int& num_elems_per_set
+                          ) = 0;
   
   /*!
    * \brief defines the size of the worksets
@@ -162,11 +170,12 @@ class WorkSet : public WorkSetBase<MeshT> {
    * \brief constructor that defines the Evaluators
    * \param[in] basis - the desired basis for the elements
    * \param[in] evaluators - a list of evaluators
+   * \param[in] num_pdes - the number of PDEs/independent variables
    * \param[in] out - a valid output stream
    */
   WorkSet(const RCP<const Basis<double, FieldContainer<double> > >& basis,
           const Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators,
-          ostream& out = std::cout);
+          const int& num_pdes, ostream& out = std::cout);
   
   /*!
    * \brief sets the cubature points and weights based on degree and topology
@@ -188,6 +197,13 @@ class WorkSet : public WorkSetBase<MeshT> {
    */
   void DefineEvaluators(
       const Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators);
+
+  /*!
+   * \brief defines the size of the worksets
+   * \param[in] total_elems - total number of elements over all sets
+   * \param[in] num_elems_per_set - number of elements in each work set
+   */
+  void ResizeSets(const int& total_elems, const int& num_elems_per_set);
   
   /*!
    * \brief defines the size of the worksets

@@ -97,6 +97,7 @@ void Laplace<NodeT,ScalarT>::Evaluate(
 //==============================================================================
 template <typename MeshT> template <typename NodeT, typename ScalarT>
 void LaplaceFactory<MeshT>::CreateEvaluators(
+    const ParameterList& p,
     Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators) const {
   evaluators.clear();
   evaluators.push_back(Teuchos::rcp(new MetricJacobian<NodeT,ScalarT>()));

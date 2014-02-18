@@ -29,6 +29,7 @@ WorkSet<NodeT,ScalarT,MeshT>::WorkSet(
   num_cub_points_ = -1;
   num_elems_ = -1;
   num_sets_ = -1;
+  num_pdes_ = -1;
   // get basis and topology information
   num_ref_basis_ = basis_->getCardinality();
   num_nodes_per_elem_ = basis_->getBaseCellTopology().getNodeCount();
@@ -43,7 +44,9 @@ template <typename NodeT, typename ScalarT, typename MeshT>
 WorkSet<NodeT,ScalarT,MeshT>::WorkSet(
     const RCP<const Basis<double, FieldContainer<double> > >& basis,
     const Array<RCP<Evaluator<NodeT,ScalarT> > >& evaluators,
-    ostream& out) {
+    const int& num_pdes, ostream& out) {
+  BOOST_ASSERT_MSG(num_pdes > 0, "num_pdes must be > 0");
+  num_pdes_ = num_pdes;
   out_ = Teuchos::rcp(&out, false);
   basis_ = basis;
   DefineEvaluators(evaluators);
@@ -114,15 +117,14 @@ void WorkSet<NodeT,ScalarT,MeshT>::DefineEvaluators(
 //==============================================================================
 template <typename NodeT, typename ScalarT, typename MeshT>
 void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(
-    const int& num_pdes, const int& total_elems, const int& num_elems_per_set) {
-  BOOST_ASSERT_MSG(num_pdes > 0, "num_pdes must be > 0");
+    const int& total_elems, const int& num_elems_per_set) {
+  BOOST_ASSERT_MSG(num_pdes_ > 0, "data member num_pdes_ must be > 0");
   BOOST_ASSERT_MSG(total_elems > 0, "total_elems must be > 0");
   BOOST_ASSERT_MSG(num_elems_per_set > 0 && num_elems_per_set <= total_elems,
                    "num_elems_per_set must be > 0 and < total_elems");
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::ResizeSets(): defining workset and evaluator dimensions\n";
 #endif
-  num_pdes_ = num_pdes;
   // determine the number of sets and the remainder set size
   num_elems_ = num_elems_per_set;
   std::div_t div_result = std::div(total_elems-1, num_elems_);
@@ -155,6 +157,19 @@ void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(
     (*evali)->SetDataViews(mesh_data_, mesh_map_offset_,
                            soln_data_, soln_map_offset_,
                            resid_data_, resid_map_offset_);
+#ifdef DAVINCI_VERBOSE
+  *out_ << "\tnum_sets_ = " << num_sets_ << "\n";
+  *out_ << "\tnum_elems_ = " << num_elems_ << "\n";
+  *out_ << "\trem_num_elems_ = " << rem_num_elems_ << "\n";
+#endif
+}
+//==============================================================================
+template <typename NodeT, typename ScalarT, typename MeshT>
+void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(
+    const int& num_pdes, const int& total_elems, const int& num_elems_per_set) {
+  BOOST_ASSERT_MSG(num_pdes > 0, "num_pdes must be > 0");
+  num_pdes_ = num_pdes;
+  ResizeSets(total_elems, num_elems_per_set);
 }
 //==============================================================================
 template <typename NodeT, typename ScalarT, typename MeshT>
@@ -188,14 +203,13 @@ void WorkSet<NodeT,ScalarT,MeshT>::Assemble(
     const RCP<MatrixT>& jacobian) {
   BOOST_ASSERT_MSG(num_ref_basis_ == num_nodes_per_elem_,
                    "presently, the basis size must equal the number of nodes");
-  
   // construct a view of residual data and indices for convenience
-  RCP<FieldContainer<const ResidT> > residual =
-      GenerateConstView(resid_data_, resid_map_offset_.at("residual"),
-                        Teuchos::tuple(num_elems_, num_ref_basis_, num_pdes_));
   RCP<FieldContainer<const typename MeshT::LocIdxT> > index =
       GenerateConstView(index_data_, 0,
                         Teuchos::tuple(num_elems_, num_ref_basis_));
+  RCP<FieldContainer<const ResidT> > residual =
+      GenerateConstView(resid_data_, resid_map_offset_.at("residual"),
+                        Teuchos::tuple(num_elems_, num_ref_basis_, num_pdes_));
   
   // build some arrays for holding the residual and jacobian blocks
   // TODO: to avoid overhead of creating these, may consider sending them in as
@@ -205,7 +219,7 @@ void WorkSet<NodeT,ScalarT,MeshT>::Assemble(
   ArrayRCP<VectorBlock> rhs_block(num_ref_basis_, VectorBlock(num_pdes_));
   ArrayRCP<MatrixBlock> jac_block(num_ref_basis_*num_ref_basis_,
                                   MatrixBlock(num_pdes_,num_pdes_));
-  
+
   // assemble into global matrix
   int set_num_elems = num_elems_;
   if (set_idx == num_sets_-1) set_num_elems = rem_num_elems_;
@@ -236,7 +250,7 @@ void WorkSet<NodeT,ScalarT,MeshT>::BuildSystem(
     const MeshT& mesh, const RCP<const VectorT>& sol,
     const RCP<VectorT>& rhs, const RCP<MatrixT>& jacobian) {
 #ifdef DAVINCI_VERBOSE
-  *out_ << "WorkSet::BuildSystem(): creating linear system\n\n";
+  *out_ << "WorkSet::BuildSystem(): creating linear system\n";
 #endif
   // get some views of the Tpetra objects
   ArrayRCP<const double> sol_view = sol->get1dView(); //sol->getData();

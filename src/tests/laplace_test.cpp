@@ -5,6 +5,7 @@
  */
 
 #include <boost/test/unit_test.hpp>
+#include "Teuchos_ParameterList.hpp"
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_Array.hpp"
 #include "Shards_CellTopology.hpp"
@@ -216,7 +217,11 @@ BOOST_AUTO_TEST_CASE(BuildLinearSystemWorkSet) {
   RCP<const Basis<double, FieldContainer<double> > > basis = Teuchos::rcp(
       new Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >);
   Teuchos::Array<RCP<WorkSetBase<SimpleMesh> > > worksets;
-  MyFactory->BuildLinearSystemWorkSet(basis, worksets);
+  Teuchos::ParameterList options;
+  options.set("cub degree",2);
+  options.set("num local elems", 100);
+  options.set("num elems per set", 10);
+  MyFactory->BuildLinearSystemWorkSet(options, basis, worksets);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

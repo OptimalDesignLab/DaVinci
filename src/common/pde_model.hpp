@@ -22,11 +22,11 @@
 
 namespace davinci {
 
+using Teuchos::ParameterList;
 using Teuchos::RCP;
 using Teuchos::ArrayRCP;
 using Tpetra::BlockMap;
 using Tpetra::BlockCrsGraph;
-
 using Intrepid::Basis;
 
 /*!
@@ -73,15 +73,20 @@ class PDEModel : public Model {
 
   /*!
    * \brief Create appropriate WorkSets for a given factory
+   * \param[in] options - parameters for mesh_, WorkSetFactory and Evaluators
    * \param[in] workset_factory - builds the WorkSets given the topology
-   * \param[in] degree - polynomial degree of the basis
    *
    * Creates WorkSet objects for use in building the linear system that solves a
    * PDE; thus, the solution scalar type is set to an Sacado AD type.
    */
-  void BuildLinearSystemWorkSets(
-      const RCP<WorkSetFactoryBase<MeshT> >& workset_factory,
-      const int& degree);
+  void CreateLinearSystemWorkSets(
+      ParameterList& options,
+      const RCP<WorkSetFactoryBase<MeshT> >& workset_factory);
+
+  /*!
+   * \brief Uses the defined WorkSets to build the Jacobian and RHS
+   */
+  void BuildLinearSystem();
   
   /*!
    * \brief set topology, cubature, and allocate memory for equation sets

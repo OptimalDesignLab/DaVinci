@@ -4,7 +4,8 @@ cmake_minimum_required(VERSION 2.8)
 set(Trilinos_PATH "/usr/local/trilinos/mpi/dbg") # Trilinos installation path
 add_definitions("-DDAVINCI_VERBOSE") # verbose debugging information
 #add_definitions("-DBOOST_DISABLE_ASSERTS") # disable boost assertions
-set(USER_CXX_FLAGS "-O3")
+#set(USER_CXX_FLAGS "-O3")
+set(USER_CXX_FLAGS "-g")
 
 # Load Trilinos information and variables
 set(Trilinos_DIR "${Trilinos_PATH}/lib/cmake/Trilinos")

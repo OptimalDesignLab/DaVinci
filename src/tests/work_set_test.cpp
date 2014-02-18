@@ -87,7 +87,9 @@ BOOST_AUTO_TEST_CASE(Constructor_with_Evaluators) {
   evaluators.push_back(Teuchos::rcp(new MetricJacobian<NodeT,ScalarT>()));
   evaluators.push_back(Teuchos::rcp(new Laplace<NodeT,ScalarT>()));
   BasisRCP basis = Teuchos::rcp(new TriBasis());
-  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(basis, evaluators, std::cout);
+  const int num_pdes = 1;
+  WorkSet<NodeT,ScalarT,SimpleMesh> MyWorkSet(basis, evaluators, num_pdes,
+                                              std::cout);
 }
 
 BOOST_AUTO_TEST_CASE(ResizeSets) {
@@ -124,8 +126,8 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   // Define a rectangular mesh  
   SimpleMesh Mesh(out, comm);
   double Lx = 1.0, Ly = 1.0;
-  //int Nx = 10, Ny = 10;
-  int Nx = 2, Ny = 2;
+  int Nx = 10, Ny = 10;
+  //int Nx = 2, Ny = 2;
   Mesh.BuildRectangularMesh(Lx, Ly, Nx, Ny);
 
   // Use mesh to create Tpetra map and graph
@@ -145,8 +147,8 @@ BOOST_AUTO_TEST_CASE(BuildSystem) {
   evaluators.push_back(Teuchos::rcp(new Laplace<double,ADType>()));
   MyWorkSet.DefineEvaluators(evaluators);
   int total_elems = Mesh.get_num_elems();
-  //int nelems = 10;
-  int nelems = 2;
+  int nelems = 10;
+  //int nelems = 2;
   MyWorkSet.ResizeSets(num_pdes, total_elems, nelems);
   
   // Create solution, rhs, and jacobian
