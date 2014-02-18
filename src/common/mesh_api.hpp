@@ -15,6 +15,7 @@
 #include "Tpetra_BlockMap.hpp"
 #include "Tpetra_BlockCrsGraph_decl.hpp"
 #include "work_set.hpp"
+#include "work_set_factory.hpp"
 
 namespace davinci {
 
@@ -48,6 +49,7 @@ template <typename LocalIndexT, typename GlobalIndexT>
 class MeshAPI {
  public:
   // convenience typedefs
+  typedef MeshAPI MeshT;
   typedef LocalIndexT LocIdxT;
   typedef GlobalIndexT GlbIdxT;
   typedef Intrepid::Basis<double, FieldContainer<double> > BasisT;
@@ -81,16 +83,29 @@ class MeshAPI {
       const RCP<const BlockMap<LocIdxT, GlbIdxT> >& map,
       RCP<BlockCrsGraph<LocIdxT, GlbIdxT> >& jac_graph) const = 0;
 
+#if 0
   /*!
    * \brief creates worksets corresponding to element topologies on mesh
-   * \param[in] num_pdes - number of PDEs (required for static AD definition)
+   * \param[in] workset_factory - builds the WorkSets given the topology
+   * \param[in] degree - polynomial degree of the basis
    * \param[out] workset - array of WorkSet base class
    *
    * Creates WorkSet objects for use in building the linear system that solves a
    * PDE; thus, the solution scalar type is set to an Sacado AD type.
    */
   virtual void BuildLinearSystemWorkSets(
-      const int& num_pdes, RCP<BasisT>& workset) const = 0;
+      const RCP<WorkSetFactoryBase<MeshT> >& workset_factory,
+      const int& degree, Array<RCP<WorkSetBase<MeshT> > >& worksets
+                                         ) const = 0;
+#endif
+
+  /*!
+   * \brief returns a list of the distinct intrepid bases
+   * \param[in] degree - polynomial degree of the basis
+   * \param[out] bases - the list of bases
+   */
+  virtual void GetIntrepidBases(const int& degree,
+                                Array<RCP<const BasisT> >& bases) const = 0;
   
   /*!
    * \brief access to the number of nodes; local to this process if parallel

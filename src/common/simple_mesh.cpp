@@ -139,42 +139,50 @@ void SimpleMesh::BuildMatrixGraph(
 #endif
 }
 //==============================================================================
+#if 0
 void SimpleMesh::BuildLinearSystemWorkSets(
-    const int& num_pdes, RCP<BasisT>& workset) const {
-  BOOST_ASSERT_MSG(num_pdes > 0, "number of PDEs must be positive");
-  //workset.clear();
+    const RCP<WorkSetFactoryBase<MeshT> >& workset_factory,
+    const int& degree, Array<RCP<WorkSetBase<MeshT> > >& worksets) const {
   // SimpleMesh always uses Triangles, but more general Mesh interfaces will
   // need a case statement or conditional for each toplology;
-
-#if 0
-  // put this in an EvaluatorFactory class (LaplaceFactory)
-  // input is a list of volume element types from mesh
-  // element types defined from Shards
-  switch (num_elem_nodes) {// or switch (sacado element type)
-    case (3):
-      typedef Sacado::Fad::SFad<double,3*num_pdes> ADType;
-      typedef Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >
-          BasisType;
-      // make the list of evaluators based on ADType
-      new WorkSet<double,ADType,SimpleMesh,BasisType>(*out_, evals);
-  }
-
-      
-  typedef Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >
-      TriBasis;
-  switch (num_pdes) {
-    case (1):
-      typedef Sacado::Fad::SFad<double,3> ADType;
-      workset = Teuchos::rcp(
-          new WorkSet<double,ADType,SimpleMesh,TriBasis>(*out_));
+  RCP<const Basis<double, FieldContainer<double> > > basis;
+  switch (degree) {
+    case (1) : // linear elements
+      basis = Teuchos::rcp(
+          new Intrepid::Basis_HGRAD_TRI_C1_FEM<double, FieldContainer<double> >);
       break;
-    default:
-      *out_ << "SimpleMesh::BuildWorkSets(): not yet generalized for num_pdes = "
-            << num_pdes << "\n";
+    case (2) : // quadratic elements
+      basis = Teuchos::rcp(
+          new Intrepid::Basis_HGRAD_TRI_C2_FEM<double, FieldContainer<double> >);
+      break;
+    default :
+      *out_ << "Error in SimpleMesh::BuildLinearSystemWorkSets(): "
+            << "invalid value for basis degree.\n";
       throw(-1);
-      break;
-  }
+  }      
+  workset_factory->BuildLinearSystemWorkSet(basis, worksets);
+}
 #endif
+//==============================================================================
+void SimpleMesh::GetIntrepidBases(const int& degree,
+                                  Array<RCP<const BasisT> >& bases) const {
+  BOOST_ASSERT_MSG(degree > 0, "degree must be positive");  
+  // SimpleMesh always uses Triangles, but more general Mesh interfaces will
+  // need a case statement or conditional for each toplology;
+  switch (degree) {
+    case (1) : // linear elements
+      bases.push_back(Teuchos::rcp(new Intrepid::Basis_HGRAD_TRI_C1_FEM<
+                                     double, FieldContainer<double> >));
+      break;
+    case (2) : // quadratic elements
+      bases.push_back(Teuchos::rcp(new Intrepid::Basis_HGRAD_TRI_C2_FEM<
+                                     double, FieldContainer<double> >));
+      break;
+    default :
+      *out_ << "Error in SimpleMesh::GetIntrepidBases(): "
+            << "invalid value for basis degree.\n";
+      throw(-1);
+  }
 }
 //==============================================================================
 void SimpleMesh::CopyElemNodeCoords(ArrayRCP<double>& node_coords,

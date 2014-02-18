@@ -40,8 +40,8 @@ set(TEST_SOURCE
     "${TEST_DIR}/simple_mesh_test.cpp"
     "${TEST_DIR}/metric_jacobian_test.cpp"
     "${TEST_DIR}/laplace_test.cpp"
-    "${TEST_DIR}/work_set_test.cpp")
-#    "${TEST_DIR}/pde_model_test.cpp")
+    "${TEST_DIR}/work_set_test.cpp"
+    "${TEST_DIR}/pde_model_test.cpp")
 #   "${TEST_DIR}/laplace.cpp"
 #    "${TEST_DIR}/laplace_test.cpp")
 add_executable(test.bin ${TEST_SOURCE})

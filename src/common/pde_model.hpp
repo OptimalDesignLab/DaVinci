@@ -17,7 +17,8 @@
 #include "Intrepid_FieldContainer.hpp"
 #include "Intrepid_Basis.hpp"
 #include "model.hpp"
-//#include "workset.hpp"
+#include "work_set.hpp"
+#include "work_set_factory.hpp"
 
 namespace davinci {
 
@@ -71,6 +72,18 @@ class PDEModel : public Model {
   void CreateMapAndJacobianGraph();
 
   /*!
+   * \brief Create appropriate WorkSets for a given factory
+   * \param[in] workset_factory - builds the WorkSets given the topology
+   * \param[in] degree - polynomial degree of the basis
+   *
+   * Creates WorkSet objects for use in building the linear system that solves a
+   * PDE; thus, the solution scalar type is set to an Sacado AD type.
+   */
+  void BuildLinearSystemWorkSets(
+      const RCP<WorkSetFactoryBase<MeshT> >& workset_factory,
+      const int& degree);
+  
+  /*!
    * \brief set topology, cubature, and allocate memory for equation sets
    * \param[in] p - a list of options needed to initialize the equation sets
    *
@@ -95,7 +108,7 @@ class PDEModel : public Model {
   int num_pdes_; ///< number of PDEs (number variables per node)
   RCP<ostream> out_; ///< output stream
   MeshT mesh_; ///< mesh object
-  ArrayRCP<BasisT> workset_; ///< array of equation work sets
+  Array<RCP<WorkSetBase<MeshT> > > workset_; ///< array of equation work sets
   RCP<const BlockMap<LocIdxT,GlbIdxT> >
   map_; ///< Tpetra map object that indicates local nodes and their indices
   RCP<BlockCrsGraph<LocIdxT,GlbIdxT> >

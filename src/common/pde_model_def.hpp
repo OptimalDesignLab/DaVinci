@@ -43,6 +43,22 @@ void PDEModel<MeshT>::CreateMapAndJacobianGraph() {
 #endif
 }
 //==============================================================================
+template<typename MeshT>
+void PDEModel<MeshT>::BuildLinearSystemWorkSets(
+    const RCP<WorkSetFactoryBase<MeshT> >& workset_factory,
+    const int& degree) {
+  BOOST_ASSERT_MSG(degree > 0, "polynomial degree must be positive");
+  Array<RCP<const BasisT> > bases;
+  mesh_.GetIntrepidBases(degree, bases);
+  Array<RCP<const BasisT> >::iterator it;
+  for (it = bases.begin(); it != bases.end(); ++it) 
+    workset_factory->BuildLinearSystemWorkSet(*it, workset_);
+#ifdef DAVINCI_VERBOSE
+  *out_ << "PDEModel::BuildLinearSystemWorkSets(): "
+        << "WorkSet list created/appended to.\n";
+#endif
+}
+//==============================================================================
 #if 0
 template<typename MeshT>
 void PDEModel<MeshT>::InitializeEquationSet(ParameterList& p) {

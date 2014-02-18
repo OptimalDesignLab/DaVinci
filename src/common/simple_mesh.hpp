@@ -89,16 +89,28 @@ class SimpleMesh : public MeshAPI<int,int> {
       const RCP<const BlockMap<LocIdxT,GlbIdxT> >& map,
       RCP<BlockCrsGraph<LocIdxT,GlbIdxT> >& jac_graph) const;
 
+#if 0
   /*!
    * \brief creates worksets corresponding to element topologies on mesh
-   * \param[in] num_pdes - number of PDEs (required for static AD definition)
+   * \param[in] workset_factory - builds the WorkSets given the topology
+   * \param[in] degree - polynomial degree of the basis
    * \param[out] workset - array of WorkSet base class
    *
    * Creates WorkSet objects for use in building the linear system that solves a
    * PDE; thus, the solution scalar type is set to an Sacado AD type.
    */
-  void BuildLinearSystemWorkSets(const int& num_pdes,
-                                 RCP<BasisT>& workset) const;
+  void BuildLinearSystemWorkSets(
+      const RCP<WorkSetFactoryBase<MeshT> >& workset_factory,
+      const int& degree, Array<RCP<WorkSetBase<MeshT> > >& worksets) const;
+#endif
+
+  /*!
+   * \brief returns a list of the distinct intrepid bases
+   * \param[in] degree - polynomial degree of the basis
+   * \param[out] bases - the list of bases
+   */
+  void GetIntrepidBases(const int& degree,
+                        Array<RCP<const BasisT> >& bases) const;
   
   /*!
    * \brief Maps a reference node index in a given element to its global index
