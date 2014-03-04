@@ -30,6 +30,7 @@ WorkSet<NodeT,ScalarT,MeshT>::WorkSet(
   num_elems_ = -1;
   num_sets_ = -1;
   num_pdes_ = -1;
+  num_sides_ = -1;
   // get basis and topology information
   num_ref_basis_ = basis_->getCardinality();
   num_nodes_per_elem_ = basis_->getBaseCellTopology().getNodeCount();
@@ -56,6 +57,7 @@ WorkSet<NodeT,ScalarT,MeshT>::WorkSet(
   num_cub_points_ = -1;
   num_elems_ = -1;
   num_sets_ = -1;
+  num_sides_ = -1;
   // get basis and topology information
   num_ref_basis_ = basis_->getCardinality();
   num_nodes_per_elem_ = basis_->getBaseCellTopology().getNodeCount();
@@ -72,22 +74,71 @@ void WorkSet<NodeT,ScalarT,MeshT>::DefineCubature(
     const int& degree) {
   BOOST_ASSERT_MSG(degree > 0 && degree < 10,
                    "cubature degree must be greater than 0 and less than 10");
-  // Get numerical integration points and weights for the defined topology
   using Intrepid::DefaultCubatureFactory;
   using Intrepid::Cubature;
+  // Get numerical integration points and weights for the reference element
   DefaultCubatureFactory<double> cubFactory;
+  CellTopology topo = basis_->getBaseCellTopology();
   Teuchos::RCP<Cubature<double> >
-      cub = cubFactory.create(basis_->getBaseCellTopology(), degree);
+      cub = cubFactory.create(topo, degree);
   cub_dim_ = cub->getDimension();
   num_cub_points_ = cub->getNumPoints();
   cub_points_.resize(num_cub_points_, cub_dim_);
   cub_weights_.resize(num_cub_points_);
   cub->getCubature(cub_points_, cub_weights_);
+  // Get numerical integration points and weights for the reference sides
+  Teuchos::RCP<Cubature<double> > side_cub;
+  num_sides_ = topo.getSideCount();
+  side_cub_dim_.resize(num_sides_, 0);
+  side_num_cub_points_.resize(num_sides_, 0);
+  side_cub_points_.resize(num_sides_);
+  side_cub_weights_.resize(num_sides_);
+  for (unsigned si = 0; si < num_sides_; si++) {
+    CellTopology side_topo(topo.getBaseCellTopologyData(dim_-1,si));
+    side_cub = cubFactory.create(side_topo, degree);
+    side_cub_dim_[si] = side_cub->getDimension();
+    side_num_cub_points_[si] = side_cub->getNumPoints();
+    side_cub_points_[si].resize(side_num_cub_points_[si], side_cub_dim_[si]);
+    side_cub_weights_[si].resize(side_num_cub_points_[si]);
+    side_cub->getCubature(side_cub_points_[si], side_cub_weights_[si]);
+  }
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::SetCubature():\n";
-  for (int i=0; i<num_cub_points_; i++)
-    *out_ << "\tcubature point " << i << ": (" << cub_points_(i,0) << ","
-          << cub_points_(i,1) << ") : weight = " << cub_weights_(i) << "\n";
+  *out_ << "Element cubature:\n";
+  for (int i=0; i<num_cub_points_; i++) {
+    *out_ << "\tcubature point " << i; 
+    switch (cub_dim_) {
+      case (1):
+        *out_ << ": (" << cub_points_(i,0) << ") "; break;
+      case (2):
+        *out_ << ": (" << cub_points_(i,0) << "," << cub_points_(i,1) << ") ";
+        break;
+      case (3):
+        *out_ << ": (" << cub_points_(i,0) << "," << cub_points_(i,1) << ","
+             << cub_points_(i,2) << ") "; break;
+      default:
+        *out_ << "WorkSet::SetCubature(): cub_dim > 3 ?\n";
+        throw(-1);
+    }
+    *out_ << ": weight = " << cub_weights_(i) << "\n";
+  }
+  for (int si = 0; si < num_sides_; si++) {
+    *out_ << "Side " << si << " cubature:\n";
+    for (int i = 0; i < side_num_cub_points_[si]; i++) {
+      *out_ << "\tcubature point " << i;
+      switch (side_cub_dim_[si]) {
+        case (1):
+          *out_ << ": (" << side_cub_points_[si](i,0) << ") "; break;
+        case (2):
+          *out_ << ": (" << side_cub_points_[si](i,0) << ","
+                << side_cub_points_[si](i,1) << ") "; break;
+        default:
+          *out_ << "WorkSet::SetCubature(): side_cub_dim[" << si << "] > 2 ?\n";
+          throw(-1);
+      }
+      *out_ << ": weight = " << side_cub_weights_[si](i) << "\n";
+    }
+  }
 #endif
 }
 //==============================================================================
@@ -96,10 +147,22 @@ void WorkSet<NodeT,ScalarT,MeshT>::EvaluateBasis() {
 #ifdef DAVINCI_VERBOSE
   *out_ << "WorkSet::DefineBasis(): evaluating basis on reference element\n";
 #endif
+  // Evaluate basis values and gradients at ref. element cubature points
   vals_.resize(num_ref_basis_, num_cub_points_);
   grads_.resize(num_ref_basis_, num_cub_points_, dim_);
   basis_->getValues(vals_, cub_points_, Intrepid::OPERATOR_VALUE);
   basis_->getValues(grads_, cub_points_, Intrepid::OPERATOR_GRAD);
+  // Evaluate basis values and gradients at ref. side cubature points
+  side_vals_.resize(num_sides_);
+  side_grads_.resize(num_sides_);
+  for (unsigned si = 0; si < num_sides_; si++) {
+    side_vals_[si].resize(num_ref_basis_, side_num_cub_points_[si]);
+    side_grads_[si].resize(num_ref_basis_, side_num_cub_points_[si], dim_);
+    basis_->getValues(side_vals_[si], side_cub_points_[si],
+                      Intrepid::OPERATOR_VALUE);
+    basis_->getValues(side_grads_[si], side_cub_points_[si],
+                      Intrepid::OPERATOR_GRAD);
+  }
 }
 //==============================================================================
 template <typename NodeT, typename ScalarT, typename MeshT>
@@ -130,11 +193,15 @@ void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(
   std::div_t div_result = std::div(total_elems-1, num_elems_);
   num_sets_ = div_result.quot+1;
   rem_num_elems_ = div_result.rem+1;
-  // set the dimensions of the Evaluators
+  // set the dimensions of the Evaluators and the reference element data
   typename Array<RCP<Evaluator<NodeT,ScalarT> > >::iterator evali;
-  for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
+  for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali) {
     (*evali)->SetDimensions(num_elems_, num_nodes_per_elem_, num_cub_points_,
                             num_ref_basis_, dim_, num_pdes_);
+    (*evali)->SetReferenceElementData(
+        basis_->getBaseCellTopology(), cub_points_, cub_weights_, vals_, grads_,
+        side_cub_points_, side_cub_weights_, side_vals_, side_grads_);
+  }
   // determine memory requirements
   int num_nodes_per_elem = basis_->getBaseCellTopology().getNodeCount();
   int mesh_memory = num_elems_*num_nodes_per_elem*dim_; // for nodes
@@ -143,6 +210,7 @@ void WorkSet<NodeT,ScalarT,MeshT>::ResizeSets(
   int index_memory = num_elems_*num_ref_basis_*num_pdes_; // for dof indices
   mesh_map_offset_["node_coords"] = 0;
   soln_map_offset_["solution_coeff"] = 0;
+  index_map_offset_["node_indices"] = 0;
   for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
     (*evali)->MemoryRequired(mesh_memory, mesh_map_offset_,
                              soln_memory, soln_map_offset_,
@@ -267,8 +335,7 @@ void WorkSet<NodeT,ScalarT,MeshT>::BuildSystem(
     CopySolution(set, sol_view);
     // evaluate the necessary fields
     for (evali = evaluators_.begin(); evali != evaluators_.end(); ++evali)
-      (*evali)->Evaluate(basis_->getBaseCellTopology(), cub_points_,
-                         cub_weights_, vals_, grads_);
+      (*evali)->Evaluate();
     // insert data into matrix and rhs vector
     Assemble(set, rhs_view, jacobian);
   }

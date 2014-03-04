@@ -57,7 +57,7 @@ void PDEModel<MeshT>::CreateLinearSystemWorkSets(
   Array<RCP<const BasisT> > bases;
   mesh_.GetIntrepidBases(options.get<int>("basis degree"), bases);
   Array<RCP<const BasisT> >::iterator it;
-  for (it = bases.begin(); it != bases.end(); ++it) 
+  for (it = bases.begin(); it != bases.end(); ++it)
     workset_factory->BuildLinearSystemWorkSet(options, *it, workset_);
 #ifdef DAVINCI_VERBOSE
   *out_ << "PDEModel::CreateLinearSystemWorkSets(): "

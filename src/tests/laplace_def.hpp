@@ -95,6 +95,72 @@ void Laplace<NodeT,ScalarT>::Evaluate(
                          Intrepid::COMP_BLAS);
 }
 //==============================================================================
+template <typename NodeT, typename ScalarT>
+void Laplace<NodeT,ScalarT>::Evaluate() {
+  typedef Intrepid::FunctionSpaceTools FST;
+  // transform to physical coordinates
+  FST::HGRADtransformGRAD<NodeT>(*grads_transformed_, *jacob_inv_,
+                                 *basis_grads_);
+  // compute weighted measure
+  FST::computeCellMeasure<NodeT>(*jacob_cub_, *jacob_det_, *cub_weights_);
+  // multiply values with weighted measure
+  FST::multiplyMeasure<NodeT>(*grads_transformed_weighted_,
+                              *jacob_cub_, *grads_transformed_);
+  // compute solution gradient
+  solution_grad_->initialize(); // set solution gradient to zero
+  FST::evaluate<ResidT>(*solution_grad_, *solution_coeff_, *grads_transformed_);
+  // integrate to get residual
+  FST::integrate<ResidT>(*residual_, *solution_grad_,
+                         *grads_transformed_weighted_,
+                         Intrepid::COMP_BLAS);
+}
+//==============================================================================
+template <typename NodeT, typename ScalarT>
+LaplaceBC<NodeT,ScalarT>::LaplaceBC() {}
+//==============================================================================
+template <typename NodeT, typename ScalarT>
+void LaplaceBC<NodeT,ScalarT>::MemoryRequired(
+    int& mesh_offset, map<string,int>& mesh_map_offset,
+    int& soln_offset, map<string,int>& soln_map_offset,
+    int& resid_offset, map<string,int>& resid_map_offset) const {
+  BOOST_ASSERT_MSG(mesh_offset >= 0, "mesh_offset must be >= 0");
+  BOOST_ASSERT_MSG(soln_offset >= 0, "soln_offset must be >= 0");
+  BOOST_ASSERT_MSG(resid_offset >= 0, "resid_offset must be >= 0");
+  resid_map_offset["residual"] = resid_offset;
+  resid_offset += num_elems_*num_ref_basis_;
+}
+//==============================================================================
+template <typename NodeT, typename ScalarT>
+void LaplaceBC<NodeT,ScalarT>::SetDataViews(
+    ArrayRCP<NodeT>& mesh_data, map<string,int>& mesh_map_offset,
+    ArrayRCP<ScalarT>& soln_data, map<string,int>& soln_map_offset,
+    ArrayRCP<ResidT>& resid_data, map<string,int>& resid_map_offset) {
+  using Teuchos::tuple;
+  // views of inputs
+  solution_coeff_ =
+      GenerateConstView(soln_data, soln_map_offset.at("solution_coeff"),
+                        tuple(num_elems_, num_ref_basis_));
+  // views of outputs
+  residual_ =
+      GenerateView(resid_data, resid_map_offset.at("residual"),
+                   tuple(num_elems_, num_ref_basis_));
+}
+//==============================================================================
+template <typename NodeT, typename ScalarT>
+void LaplaceBC<NodeT,ScalarT>::Evaluate(
+    const CellTopology& topology,
+    const FieldContainer<double>& cub_points,
+    const FieldContainer<double>& cub_weights,
+    const FieldContainer<double>& basis_vals,
+    const FieldContainer<double>& basis_grads) {
+  typedef Intrepid::FunctionSpaceTools FST;
+}
+//==============================================================================
+template <typename NodeT, typename ScalarT>
+void LaplaceBC<NodeT,ScalarT>::Evaluate() {
+
+}
+//==============================================================================
 template <typename MeshT> template <typename NodeT, typename ScalarT>
 void LaplaceFactory<MeshT>::CreateEvaluators(
     const ParameterList& p,

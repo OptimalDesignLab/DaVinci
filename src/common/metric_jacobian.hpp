@@ -86,6 +86,11 @@ class MetricJacobian : public Evaluator<NodeT,ScalarT> {
                 const FieldContainer<double>& cub_weights,
                 const FieldContainer<double>& basis_vals,
                 const FieldContainer<double>& basis_grads);
+
+  /*!
+   * \brief compute the dependent variables based on the independent ones
+   */  
+  void Evaluate();
   
  protected:
   // these using statements are needed because the data members of the templated
@@ -94,6 +99,9 @@ class MetricJacobian : public Evaluator<NodeT,ScalarT> {
   using Evaluator<NodeT,ScalarT>::num_nodes_per_elem_;
   using Evaluator<NodeT,ScalarT>::num_cub_points_;
   using Evaluator<NodeT,ScalarT>::dim_;
+  using Evaluator<NodeT,ScalarT>::topology_;
+  using Evaluator<NodeT,ScalarT>::cub_points_;
+  using Evaluator<NodeT,ScalarT>::cub_weights_;
 
   // inputs
   RCP<FieldContainer<const NodeT> > node_coords_; ///< element node coordinates

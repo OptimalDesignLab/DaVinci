@@ -81,6 +81,29 @@ class Evaluator {
   void SetDimensions(const int& num_elems, const int& num_nodes_per_elem,
                      const int& num_cub_points, const int& num_ref_basis,
                      const int& spatial_dim, const int& num_pdes = 1);
+
+  /*!
+   * \brief defines the reference element cubature and basis values/gradients
+   * \param[in] topology - shards CellTopology of the elements in the workset
+   * \param[in] cub_points - cubature points on reference element
+   * \param[in] cub_weights - cubature weights on reference element
+   * \param[in] basis_vals - the ref element basis values at the cubature points
+   * \param[in] basis_grads - the basis gradient at the cubature points
+   * \param[in] side_cub_points - cubature points on reference element sides
+   * \param[in] side_cub_weights - cubature weights on reference element sides
+   * \param[in] side_basis_vals - ref element basis values at side cub points
+   * \param[in] side_basis_grads - ref element basis gradient at side cub points
+   */
+  void SetReferenceElementData(
+      const CellTopology& topology,
+      const FieldContainer<double>& cub_points,
+      const FieldContainer<double>& cub_weights,
+      const FieldContainer<double>& basis_vals,
+      const FieldContainer<double>& basis_grads,
+      const ArrayRCP<FieldContainer<double> >& side_cub_points,
+      const ArrayRCP<FieldContainer<double> >& side_cub_weights,
+      const ArrayRCP<FieldContainer<double> >& side_basis_vals,
+      const ArrayRCP<FieldContainer<double> >& side_basis_grads);
   
   /*!
    * \brief memory requirements and offsets for dependent fields
@@ -128,6 +151,11 @@ class Evaluator {
                         const FieldContainer<double>& cub_weights,
                         const FieldContainer<double>& basis_vals,
                         const FieldContainer<double>& basis_grads) = 0;
+
+  /*!
+   * \brief compute the dependent variables based on the independent ones
+   */
+  virtual void Evaluate() = 0;
   
  protected:  
   int num_elems_; ///< total number of elements in the workset
@@ -136,6 +164,23 @@ class Evaluator {
   int num_ref_basis_; ///< number of basis functions on reference element
   int dim_; ///< spatial dimension of the problem
   int num_pdes_; ///< number of PDEs and unknowns
+  RCP<const CellTopology> topology_; ///< reference element base topology
+  RCP<const FieldContainer<double> >
+  cub_points_; ///< cubature points on reference element
+  RCP<const FieldContainer<double> >
+  cub_weights_; ///< cubature weights on reference element
+  RCP<const FieldContainer<double> >
+  basis_vals_; ///< basis values at cubature points on reference element
+  RCP<const FieldContainer<double> >
+  basis_grads_; ///< basis gradient at cubature points on reference element
+  ArrayRCP<const FieldContainer<double> >
+  side_cub_points_; ///< cubature points on reference element sides
+  ArrayRCP<const FieldContainer<double> >
+  side_cub_weights_; ///< cubature weights on reference element sides
+  ArrayRCP<const FieldContainer<double> >
+  side_basis_vals_; ///< basis values at cubature points on element sides
+  ArrayRCP<const FieldContainer<double> >
+  side_basis_grads_; ///< basis gradient at cubature points on element sides
 };
 
 /*!

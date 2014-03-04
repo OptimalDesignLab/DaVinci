@@ -73,4 +73,12 @@ void MetricJacobian<NodeT,ScalarT>::Evaluate(
   CellTools::setJacobianDet(*jacob_det_, *jacob_);
 }
 //==============================================================================
+template <typename NodeT, typename ScalarT>
+void MetricJacobian<NodeT,ScalarT>::Evaluate() {
+  typedef Intrepid::CellTools<NodeT> CellTools;
+  CellTools::setJacobian(*jacob_, *cub_points_, *node_coords_, *topology_);
+  CellTools::setJacobianInv(*jacob_inv_, *jacob_);
+  CellTools::setJacobianDet(*jacob_det_, *jacob_);
+}
+//==============================================================================
 }

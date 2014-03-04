@@ -25,6 +25,30 @@ void Evaluator<NodeT,ScalarT>::SetDimensions(
   num_pdes_ = num_pdes;
 }
 //==============================================================================
+template <typename NodeT, typename ScalarT>
+void Evaluator<NodeT,ScalarT>::SetReferenceElementData(
+    const CellTopology& topology,
+    const FieldContainer<double>& cub_points,
+    const FieldContainer<double>& cub_weights,
+    const FieldContainer<double>& basis_vals,
+    const FieldContainer<double>& basis_grads,
+    const ArrayRCP<FieldContainer<double> >& side_cub_points,
+    const ArrayRCP<FieldContainer<double> >& side_cub_weights,
+    const ArrayRCP<FieldContainer<double> >& side_basis_vals,
+    const ArrayRCP<FieldContainer<double> >& side_basis_grads) {
+  // Note: need to create a new RCP to topology, because it is generally a
+  // temporary variable in the client
+  topology_ = Teuchos::rcp(new CellTopology(topology));
+  cub_points_ = Teuchos::rcpFromRef(cub_points);
+  cub_weights_ = Teuchos::rcpFromRef(cub_weights);
+  basis_vals_ = Teuchos::rcpFromRef(basis_vals);
+  basis_grads_ = Teuchos::rcpFromRef(basis_grads);
+  side_cub_points_ = side_cub_points.getConst();
+  side_cub_weights_ = side_cub_weights.getConst();
+  side_basis_vals_ = side_basis_vals.getConst();
+  side_basis_grads_ = side_basis_grads.getConst();
+}
+//==============================================================================
 template <typename T, int N>
 RCP<FieldContainer<T> > GenerateView(
     ArrayRCP<T>& data, const int& offset, const Tuple<int,N>& dimensions) {

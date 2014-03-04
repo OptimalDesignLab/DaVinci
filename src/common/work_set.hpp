@@ -255,20 +255,36 @@ class WorkSet : public WorkSetBase<MeshT> {
   int num_sets_; ///< number of work sets
   int num_elems_; ///< number of elements (volume, face, or line) per set
   int rem_num_elems_; ///< number of elements on last set
-  int cub_dim_; ///< dimension of the cubature points (not necessarily = dim_)
-  int num_cub_points_; ///< number of cubature points
   int num_ref_basis_; ///< number of basis functions on the reference element
   RCP<ostream> out_; ///< output stream
   RCP<const Basis<double, FieldContainer<double> > > basis_; ///< Intrepid basis
-  Array<RCP<Evaluator<NodeT,ScalarT> > > evaluators_; ///< evaluators 
+  Array<RCP<Evaluator<NodeT,ScalarT> > > evaluators_; ///< evaluators
+
+  // cubature and reference element data
+  int cub_dim_; ///< dimension of the cubature points (not necessarily = dim_)
+  int num_cub_points_; ///< number of cubature points
   FieldContainer<double> cub_points_; ///< cubature point locations
   FieldContainer<double> cub_weights_; ///< cubature weights
   FieldContainer<double> vals_; ///< basis values at cub points on ref element
   FieldContainer<double> grads_; ///< gradient values at cub points ref element
+
+  // cubature and reference side data
+  int num_sides_; ///< number of sides (subcells of dim_-1)
+  std::vector<int> side_cub_dim_; ///< dimension of the cubature on ref. sides
+  std::vector<int> side_num_cub_points_; ///< number of cubature points on sides
+  ArrayRCP<FieldContainer<double> >
+  side_cub_points_; ///< cubature points on ref. sides
+  ArrayRCP<FieldContainer<double> >
+  side_cub_weights_; ///< cubature weights on ref. sides
+  ArrayRCP<FieldContainer<double> >
+  side_vals_; ///< basis values on sides
+  ArrayRCP<FieldContainer<double> >
+  side_grads_; ///< gradient values on sides
   
   std::map<std::string,int> mesh_map_offset_; ///< map to mesh field data offset
   std::map<std::string,int> soln_map_offset_; ///< map to soln field data offset
   std::map<std::string,int> resid_map_offset_; ///< map to residual data offset
+  std::map<std::string,int> index_map_offset_; ///< map for index data offset
   ArrayRCP<NodeT> mesh_data_; ///< continuous array for node-based data
   ArrayRCP<ScalarT> soln_data_; ///< continuous array for solution data
   ArrayRCP<ResidT> resid_data_; ///< continuous array for output data
